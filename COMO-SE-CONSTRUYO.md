@@ -472,7 +472,30 @@ automáticamente) y el detalle ganó un **editor manual**: pegás la URL de la p
 real ("Cambiar imagen…") o la quitás ("Quitar imagen", que deja que la próxima lectura
 la rellene). `PUT /api/mangas/:id` acepta `coverUrl: string | null` para eso.
 
-### 9c. Estados y tags manuales (la decisión honesta sobre "géneros")
+**Segundo refinamiento (caso real: img2mw.xyz, el CDN de manhwaweb): el proxy de
+portadas.** La captura funcionaba — la DB tenía la URL correcta de la portada — pero
+la tarjeta seguía en gradiente. Diagnóstico con curl: ese CDN aplica **anti-hotlink
+por Referer** (403 sin referer, 403 con referer `localhost`, 200 SOLO con
+`Referer: https://manhwaweb.com/`). Ningún truco del navegador arregla eso:
+`referrerPolicy="no-referrer"` manda exactamente el referer que el CDN rechaza (o sea
+ninguno), y el navegador jamás va a mandar el referer de OTRO sitio — está prohibido
+por diseño. El único que puede impersonar el referer correcto es un servidor: el API
+ganó `GET /api/mangas/:id/cover`, que descarga la imagen con
+`Referer: https://<sourceDomain del último evento>/` (dato que ya estaba en el log de
+eventos), reintenta una vez SIN referer si el CDN rechaza (hay CDNs que bloquean
+referers ajenos pero aceptan ninguno), valida que el content-type sea `image/*` y
+la sirve con `Cache-Control: public, max-age=86400`.
+
+`CoverImage` dejó de apuntar a la URL cruda: ahora construye
+`/api/mangas/<id>/cover?v=<hash(coverUrl)>` (same-origin — el API sirve este
+dashboard, así que ni CORS ni proxy de Vite necesitan nada nuevo). El `?v=` derivado
+del hash del coverUrl **bustea el caché del navegador** cuando la portada cambia, y
+el estado de fallo se recuerda POR src (`failedSrc === src`): si una URL falló pero
+el usuario fija otra portada, el `?v=` cambia y se reintenta solo — antes el `failed`
+booleano dejaba el gradiente pegado para siempre. El único lugar que sigue usando la
+URL cruda es el preview del editor manual (la URL aún no está guardada, así que el
+proxy no la conoce); si ese preview no carga por hotlink, al guardar se ve igual vía
+proxy.
 
 Las páginas de capítulo no declaran los géneros del manga de forma confiable — eso
 vive en la ficha del sitio, que la extensión no visita. Adivinar = basura en la DB. Se
