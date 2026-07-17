@@ -275,7 +275,11 @@ function MangaCard({
   return (
     <article className="card">
       <Link to={`/manga/${entry.id}`} className="card-cover">
-        <CoverImage name={entry.canonicalName} coverUrl={entry.coverUrl} />
+        <CoverImage
+          mangaId={entry.id}
+          name={entry.canonicalName}
+          coverUrl={entry.coverUrl}
+        />
         {entry.reachedChapter && (
           <span className="card-chapter">{entry.reachedChapter.label}</span>
         )}

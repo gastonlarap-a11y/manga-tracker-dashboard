@@ -77,6 +77,7 @@ export function MangaDetailView() {
       <div className="detail-head">
         <div className="detail-cover-column">
           <CoverImage
+            mangaId={manga.id}
             name={manga.canonicalName}
             coverUrl={manga.coverUrl}
             className="detail-cover"
