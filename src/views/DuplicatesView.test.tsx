@@ -1,25 +1,23 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DuplicatePairDto } from "../api/types";
-import { jsonResponse, renderWithProviders } from "../test-utils";
+import { jsonResponse, mangaDto, renderWithProviders } from "../test-utils";
 import { DuplicatesView } from "./DuplicatesView";
 
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 
 const pair: DuplicatePairDto = {
-  a: {
+  a: mangaDto({
     id: "m1",
     canonicalName: "Solo Leveling",
     normalizedSlug: "solo-leveling",
-    createdAt: "2026-07-01T00:00:00.000Z",
-  },
-  b: {
+  }),
+  b: mangaDto({
     id: "m2",
     canonicalName: "Solo Levelling",
     normalizedSlug: "solo-levelling",
-    createdAt: "2026-07-02T00:00:00.000Z",
-  },
+  }),
   similarity: 0.87,
 };
 

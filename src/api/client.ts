@@ -5,6 +5,7 @@ import type {
   LibraryEntryDto,
   MangaDto,
   MangaHistoryDto,
+  UpdateMangaBody,
 } from "./types";
 
 export type ApiResult<T> =
@@ -28,6 +29,11 @@ async function request<T>(
         error: body?.error ?? `HTTP ${response.status}`,
         status: response.status,
       };
+    }
+    if (response.status === 204) {
+      // Cast justified: 204 responses (DELETE) are only requested as
+      // ApiResult<null>; there is no body to parse.
+      return { ok: true, data: null as T };
     }
     return { ok: true, data: (await response.json()) as T };
   } catch (cause) {
@@ -63,14 +69,20 @@ export function getMangaHistory(
   return request(`/api/mangas/${encodeURIComponent(id)}/history`);
 }
 
-export function updateMangaName(
+export function updateManga(
   id: string,
-  canonicalName: string,
+  body: UpdateMangaBody,
 ): Promise<ApiResult<MangaDto>> {
   return request(`/api/mangas/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ canonicalName }),
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteManga(id: string): Promise<ApiResult<null>> {
+  return request(`/api/mangas/${encodeURIComponent(id)}`, {
+    method: "DELETE",
   });
 }
 

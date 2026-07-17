@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { jsonResponse } from "../test-utils";
 import {
+  deleteManga,
   getDuplicates,
   getLibrary,
   getMangaHistory,
   pingHealth,
-  updateMangaName,
+  updateManga,
 } from "./client";
 
 const fetchMock = vi.fn();
@@ -40,17 +41,30 @@ describe("getLibrary", () => {
   });
 });
 
-describe("updateMangaName", () => {
-  it("sends a PUT with the new canonical name", async () => {
+describe("updateManga", () => {
+  it("sends a PUT with the provided fields only", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ id: "m1" }));
 
-    await updateMangaName("m1", "One Piece");
+    await updateManga("m1", { status: "completed", tags: ["accion"] });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/mangas/m1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ canonicalName: "One Piece" }),
+      body: JSON.stringify({ status: "completed", tags: ["accion"] }),
     });
+  });
+});
+
+describe("deleteManga", () => {
+  it("maps the empty 204 response to ok null", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    const result = await deleteManga("m1");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/mangas/m1", {
+      method: "DELETE",
+    });
+    expect(result).toEqual({ ok: true, data: null });
   });
 });
 

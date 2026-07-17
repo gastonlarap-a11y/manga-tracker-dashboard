@@ -296,3 +296,332 @@ button.ghost:hover {
   flex: 1;
   min-width: 220px;
 }
+
+/* ---- stats row ---- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* ---- toolbar ---- */
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-row.secondary {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.toolbar-row.secondary label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 340px;
+}
+
+/* ---- segmented control ---- */
+
+.segmented {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.segmented button {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented button.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ---- tag filter & chips ---- */
+
+.tag-filter {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+button.chip.selectable {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 400;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+button.chip.selectable.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ---- library grid ---- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.card-cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+}
+
+.cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.82);
+}
+
+.card-chapter {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgb(0 0 0 / 0.68);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.card-status {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.68);
+}
+
+.card-status.completed {
+  color: var(--green);
+}
+
+.card-status.dropped {
+  color: var(--red);
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.card-title {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.88rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-title:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.card-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.card-continue {
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+/* ---- detail header ---- */
+
+.detail-head {
+  display: flex;
+  gap: 1.5rem;
+  margin: 1rem 0 1.5rem;
+  align-items: flex-start;
+}
+
+.detail-cover {
+  width: 168px;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.continue {
+  font-size: 0.9rem;
+  align-self: flex-start;
+}
+
+.status-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* ---- tags editor ---- */
+
+.tags-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tags-editor .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text);
+}
+
+.tags-editor .chip button {
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.tags-editor .chip button:hover {
+  color: var(--red);
+}
+
+.tags-editor input {
+  width: 130px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* ---- danger zone ---- */
+
+.danger-zone {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+button.ghost.danger {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 40%, transparent);
+}
+
+button.danger-solid {
+  background: var(--red);
+  color: var(--bg);
+}

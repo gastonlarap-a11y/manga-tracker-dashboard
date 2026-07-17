@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { updateMangaName } from "../api/client";
+import { updateManga } from "../api/client";
 import type { MangaDto } from "../api/types";
 
 interface RenameFormProps {
@@ -44,7 +44,7 @@ export function RenameForm({
       return;
     }
     setState({ kind: "saving", value: trimmed });
-    const result = await updateMangaName(mangaId, trimmed);
+    const result = await updateManga(mangaId, { canonicalName: trimmed });
     if (result.ok) {
       setState({ kind: "idle" });
       onRenamed(result.data);
