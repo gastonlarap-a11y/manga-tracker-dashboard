@@ -9,11 +9,14 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
 ## Layout
 - `src/api/` — backend contract: `types.ts` (hand-duplicated DTOs) + `client.ts`
   (`ApiResult<T>` fetch wrapper; relative paths, same-origin)
-- `src/state/atoms.ts` — Jotai: filter atoms + `atomWithRefresh` async data atoms
+- `src/state/atoms.ts` — Jotai: server filters (domain/since → refetch), client filters
+  (search/status tab/tags → filter in memory), `atomWithRefresh` data atoms and the
+  unfiltered `baseLibraryAtom` snapshot (stats + select/chip options)
 - `src/views/` — one component per route (`/`, `/manga/:id`, `/duplicates`) with
-  colocated `*.test.tsx`
-- `src/components/` — `Layout` (nav + health badge), `RenameForm` (shared by detail and
-  duplicates)
+  colocated `*.test.tsx`; the library is a cover-card grid with a sticky toolbar
+- `src/components/` — `Layout` (nav + health badge), `LiveRefresh` (SSE
+  `/api/events/stream` → refreshes every data atom, 300ms debounce), `CoverImage`
+  (cover with deterministic gradient fallback), `RenameForm`
 - `src/lib/` — pure utilities with colocated tests
 - `src/test-utils.tsx` — async `renderWithProviders` (jotai store + MemoryRouter) —
   see Rules
@@ -32,6 +35,8 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
 - Shared/cross-view state lives in Jotai atoms; state local to one view stays in the
   component (discriminated-union state, no flag booleans).
 - Rename fixes only `canonicalName`; there is no merge on purpose (append-only events).
+- Reading status and tags are MANUAL (chapter pages cannot declare genres reliably);
+  deletes require explicit confirmation and are the only destructive action.
 - Tests: components that read async atoms suspend — always render through the async
   `renderWithProviders` and wrap suspense-triggering interactions in `actAsync`
   (React 19 requires awaited `act` for suspended trees).

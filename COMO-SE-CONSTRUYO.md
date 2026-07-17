@@ -414,7 +414,82 @@ su content-type, `/health` y `/api/library` intactos, `/api/nope` → 404.
 
 ---
 
-## 9. Gates y comandos del día a día
+## 9. Paso 9 — Dashboard v2: refresco en vivo, portadas, estados, tags y más
+
+Segunda ronda grande, pedida con el diseño delegado ("como se hace hoy en día"). Todo
+lo de este paso vive en el commit `feat(ui): dashboard v2 …` (más su contraparte del
+API `feat(api): live stream, covers, …` y una línea en la extensión).
+
+### 9a. Refresco en vivo con SSE (la parte "eficiente")
+
+El requisito era ver el estado real sin recargar y **sin gastar recursos**. La
+respuesta correcta para "el servidor avisa, el cliente escucha" es **Server-Sent
+Events**, no polling ni WebSockets:
+
+- **Backend**: un bus in-process minúsculo (`events.bus.ts`: un `Set` de listeners con
+  `subscribeLibraryChanges`/`publishLibraryChanged`) al que publican TODAS las
+  mutaciones de la librería (evento nuevo, portada nueva, rename/estado/tags, delete).
+  La ruta `GET /api/events/stream` (`streamSSE` de `hono/streaming`) se suscribe al bus
+  y reenvía `library-changed`, con un `ping` cada 30 s para que la conexión idle no se
+  cierre; en el abort se desuscribe.
+- **Dashboard**: `LiveRefresh` (montado en `Layout`) abre UN `EventSource` — una sola
+  conexión HTTP que queda dormida — y al recibir `library-changed` refresca los átomos
+  de datos con un debounce de 300 ms (una ráfaga de eventos = un solo refetch).
+  `EventSource` reconecta solo si el backend se reinicia. Costo en reposo: cero.
+- **Test**: `FakeEventSource` (clase stub que registra instancias y permite emitir
+  eventos a mano) + un componente sonda que lee `libraryAtom` — se emite el evento y se
+  observa el refetch real.
+
+### 9b. Portadas sin scraping
+
+La extensión ya está parada en la página del capítulo: `coverFromDocument` (en su
+`page-signals.ts`) lee `og:image`/`twitter:image`, lo resuelve a URL http(s) absoluta y
+lo manda como `coverUrl` opcional del evento. El API lo persiste en `Manga.coverUrl`
+(actualiza solo si cambió, incluso en reportes dedupeados). Acá, `CoverImage` lo
+muestra con `loading="lazy"` y `referrerPolicy="no-referrer"` (algunos sitios bloquean
+hotlinks por referer); si no hay imagen o falla la carga (`onError`), cae a un
+gradiente **determinístico por nombre** (hash → hue HSL) con la inicial — cada manga
+sin portada se ve distinto pero siempre igual a sí mismo.
+
+### 9c. Estados y tags manuales (la decisión honesta sobre "géneros")
+
+Las páginas de capítulo no declaran los géneros del manga de forma confiable — eso
+vive en la ficha del sitio, que la extensión no visita. Adivinar = basura en la DB. Se
+optó por lo que hacen los trackers reales (AniList/MAL): **estado de lectura manual**
+(`reading | completed | dropped`, columna con default; pestañas en la biblioteca con
+"Leyendo" como default, así los terminados no estorban) y **tags manuales** (columna
+JSON de strings en SQLite — no hay arrays — editadas con chips en el detalle y
+filtrables en la biblioteca). `PUT /api/mangas/:id` pasó a aceptar
+`{canonicalName?, status?, tags?}` con un `refine` de "al menos un campo".
+
+### 9d. La biblioteca rediseñada
+
+- **Orden**: la proyección del API ahora sale por `lastActivity` desc (los más nuevos
+  primero) y expone `lastSourceUrl` → botón "Seguir leyendo ↗" que abre el último
+  capítulo leído.
+- **Grilla de tarjetas** (`auto-fill minmax(160px, 1fr)`): portada 3:4 con badge del
+  capítulo alcanzado, título clampado a 2 líneas, tiempo relativo, hover sutil.
+- **Toolbar sticky**: buscador **insensible a acentos** (`normalize("NFD")` + strip de
+  diacríticos: "invocacion" encuentra "Invocación"), segmented control de estados,
+  selects de sitio/actividad y chips de tags. Búsqueda/estado/tags filtran **en
+  memoria** (la DB es chica; refetchear por tecla sería gastar por nada); solo
+  dominio/fecha refetchean.
+- **Stats** (spec de stat tile del sistema de diseño: label sentence-case + valor
+  semibold en tokens de texto): en lectura, capítulos leídos, sitios, activos de la
+  semana — derivadas de `baseLibraryAtom`, el snapshot SIN filtros que también alimenta
+  las opciones de dominio y tags (si salieran del resultado filtrado, el select
+  colapsaría al filtrar).
+
+### 9e. Detalle y borrado
+
+Cabecera con portada grande + estado + tags + "Seguir leyendo"; historial igual que
+antes; y al final la **danger zone**: "Borrar manga…" → confirmación explícita → `
+DELETE /api/mangas/:id` (los eventos caen por `onDelete: Cascade`) → vuelta a `/`.
+Nació de la experiencia real: las filas basura hasta ahora se borraban por SQL a mano.
+
+---
+
+## 10. Gates y comandos del día a día
 
 - `bun run dev` — vite en :5173 con el proxy al backend (levantá el API antes, o usá el
   LaunchAgent que ya corre).
@@ -429,7 +504,7 @@ TypeScript del repo) y este documento.
 
 ---
 
-## 10. Recetario: cómo repetir esto en otro proyecto
+## 11. Recetario: cómo repetir esto en otro proyecto
 
 1. **Cuestioná si necesitás un servidor propio.** Si ya hay un backend, servir el build
    estático desde ahí (same-origin) borra CORS, permisos de red y un proceso entero.
