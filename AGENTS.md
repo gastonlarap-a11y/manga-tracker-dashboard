@@ -14,9 +14,11 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   unfiltered `baseLibraryAtom` snapshot (stats + select/chip options)
 - `src/views/` — one component per route (`/`, `/manga/:id`, `/duplicates`) with
   colocated `*.test.tsx`; the library is a cover-card grid with a sticky toolbar
-- `src/components/` — `Layout` (nav + health badge), `LiveRefresh` (SSE
-  `/api/events/stream` → refreshes every data atom, 300ms debounce), `CoverImage`
-  (cover with deterministic gradient fallback), `RenameForm`
+- `src/components/` — `Layout` (nav + badge), `LiveRefresh` (SSE
+  `/api/events/stream` → refreshes every data atom on events, on (re)open and on the
+  tab becoming visible; owns `liveStatusAtom`), `ConnectionBadge` (shows the real
+  stream state, no polling), `CoverImage` (cover with deterministic gradient
+  fallback), `RenameForm`
 - `src/lib/` — pure utilities with colocated tests
 - `src/test-utils.tsx` — async `renderWithProviders` (jotai store + MemoryRouter) —
   see Rules

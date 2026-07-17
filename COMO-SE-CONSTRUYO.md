@@ -438,7 +438,21 @@ Events**, no polling ni WebSockets:
   `EventSource` reconecta solo si el backend se reinicia. Costo en reposo: cero.
 - **Test**: `FakeEventSource` (clase stub que registra instancias y permite emitir
   eventos a mano) + un componente sonda que lee `libraryAtom` — se emite el evento y se
-  observa el refetch real.
+  observa el refetch real. (Detalle de jotai: refrescar un átomo SIN suscriptores es
+  no-op; la sonda existe justamente para montarlo.)
+
+**El bug que casi mata la feature (y su lección):** la primera versión "funcionaba" en
+un curl de 5 segundos… y en el navegador real el usuario seguía apretando F5.
+`Bun.serve` cierra conexiones tras **10 s de inactividad POR DEFECTO, incluso en medio
+de un stream** — con heartbeat cada 30 s, la conexión SSE moría a los ~10 s de cada
+escritura y quedaba muerta la mayor parte del tiempo (medido: 1 ping recibido en 65 s
+cuando debían ser 3). Fix: `idleTimeout: 120` en el export del server + heartbeat a
+25 s. Robustez adicional del cliente: refetch en `open` (una reconexión implica
+eventos perdidos) y en `visibilitychange` (Chrome/Brave congelan pestañas en
+background). El badge de conexión pasó a reflejar el estado real del stream ("En
+vivo"/"Reconectando…"), reemplazando al polling de 30 s. **Lección: un stream se
+verifica MÁS ALLÁ de la ventana de timeout del server, y en el navegador real — no
+solo con curl.**
 
 ### 9b. Portadas sin scraping
 
@@ -450,6 +464,13 @@ muestra con `loading="lazy"` y `referrerPolicy="no-referrer"` (algunos sitios bl
 hotlinks por referer); si no hay imagen o falla la carga (`onError`), cae a un
 gradiente **determinístico por nombre** (hash → hue HSL) con la inicial — cada manga
 sin portada se ve distinto pero siempre igual a sí mismo.
+
+Refinamiento posterior (caso real: Olympus declara su LOGO como og:image): la
+extensión descarta imágenes con pinta de branding (`logo|banner|favicon|…` en el
+pathname), el backend aplica **first-wins** (una portada guardada no se pisa nunca
+automáticamente) y el detalle ganó un **editor manual**: pegás la URL de la portada
+real ("Cambiar imagen…") o la quitás ("Quitar imagen", que deja que la próxima lectura
+la rellene). `PUT /api/mangas/:id` acepta `coverUrl: string | null` para eso.
 
 ### 9c. Estados y tags manuales (la decisión honesta sobre "géneros")
 
