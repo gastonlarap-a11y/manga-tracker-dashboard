@@ -14,6 +14,10 @@ export const statusTabAtom = atom<StatusTab>("reading");
 export const searchAtom = atom("");
 export const tagFilterAtom = atom<string[]>([]);
 
+// SSE connection state, owned by LiveRefresh and shown by ConnectionBadge.
+export type LiveStatus = "connecting" | "live" | "offline";
+export const liveStatusAtom = atom<LiveStatus>("connecting");
+
 const DAY_MS = 86_400_000;
 
 // atomWithRefresh: writing to the atom re-runs the fetch (used by LiveRefresh

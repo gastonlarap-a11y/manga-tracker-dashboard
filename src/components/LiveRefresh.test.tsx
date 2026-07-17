@@ -90,6 +90,47 @@ describe("LiveRefresh", () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
+  it("refreshes immediately when the stream (re)opens", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([])));
+
+    // The probe mounts libraryAtom: refreshing an unmounted atom is a no-op.
+    await renderWithProviders(
+      <>
+        <LiveRefresh />
+        <LibraryProbe />
+      </>,
+    );
+    const source = FakeEventSource.instances[0];
+    const callsBefore = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      source?.emit("open");
+      await Promise.resolve();
+    });
+
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it("refreshes when the tab becomes visible again", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([])));
+
+    await renderWithProviders(
+      <>
+        <LiveRefresh />
+        <LibraryProbe />
+      </>,
+    );
+    const callsBefore = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await Promise.resolve();
+    });
+
+    // happy-dom tabs are always "visible", so the handler must refetch.
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
   it("closes the connection on unmount", async () => {
     fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([])));
 

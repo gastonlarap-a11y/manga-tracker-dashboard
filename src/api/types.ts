@@ -47,6 +47,8 @@ export interface UpdateMangaBody {
   canonicalName?: string;
   status?: MangaStatus;
   tags?: string[];
+  // string = set a manual cover; null = clear it (next reading may refill)
+  coverUrl?: string | null;
 }
 
 export interface DuplicatePairDto {

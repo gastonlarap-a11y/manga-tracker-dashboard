@@ -75,11 +75,14 @@ export function MangaDetailView() {
         ← Biblioteca
       </Link>
       <div className="detail-head">
-        <CoverImage
-          name={manga.canonicalName}
-          coverUrl={manga.coverUrl}
-          className="detail-cover"
-        />
+        <div className="detail-cover-column">
+          <CoverImage
+            name={manga.canonicalName}
+            coverUrl={manga.coverUrl}
+            className="detail-cover"
+          />
+          <CoverEditor manga={manga} onUpdated={applyManga} />
+        </div>
         <div className="detail-info">
           <div className="view-head">
             <h1>{manga.canonicalName}</h1>
@@ -253,6 +256,95 @@ function TagsEditor({
         />
       </form>
       {error && <span className="error">{error}</span>}
+    </div>
+  );
+}
+
+type CoverEditorState =
+  | { kind: "idle" }
+  | { kind: "editing"; value: string }
+  | { kind: "saving" }
+  | { kind: "error"; error: string; value: string };
+
+// Manual cover: sites like olympus only expose their logo as og:image, so
+// the user can paste the real cover URL (from the site's manga page) here.
+// The backend never overwrites a stored cover automatically (first wins).
+function CoverEditor({
+  manga,
+  onUpdated,
+}: {
+  manga: MangaDto;
+  onUpdated: (manga: MangaDto) => void;
+}) {
+  const [state, setState] = useState<CoverEditorState>({ kind: "idle" });
+
+  async function save(coverUrl: string | null): Promise<void> {
+    setState({ kind: "saving" });
+    const result = await updateManga(manga.id, { coverUrl });
+    if (result.ok) {
+      setState({ kind: "idle" });
+      onUpdated(result.data);
+    } else {
+      setState({ kind: "error", error: result.error, value: coverUrl ?? "" });
+    }
+  }
+
+  if (state.kind === "idle" || state.kind === "saving") {
+    return (
+      <div className="cover-editor">
+        <button
+          type="button"
+          className="ghost"
+          disabled={state.kind === "saving"}
+          onClick={() => setState({ kind: "editing", value: "" })}
+        >
+          Cambiar imagen…
+        </button>
+        {manga.coverUrl && (
+          <button
+            type="button"
+            className="ghost"
+            disabled={state.kind === "saving"}
+            onClick={() => void save(null)}
+          >
+            Quitar imagen
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  const value = state.value;
+
+  return (
+    <div className="cover-editor">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const trimmed = value.trim();
+          if (trimmed.length > 0) {
+            void save(trimmed);
+          }
+        }}
+      >
+        <input
+          aria-label="URL de la imagen"
+          placeholder="https://…/portada.jpg"
+          value={value}
+          onChange={(event) =>
+            setState({ kind: "editing", value: event.target.value })
+          }
+        />
+        <button type="submit">Guardar</button>
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => setState({ kind: "idle" })}
+        >
+          Cancelar
+        </button>
+      </form>
+      {state.kind === "error" && <span className="error">{state.error}</span>}
     </div>
   );
 }

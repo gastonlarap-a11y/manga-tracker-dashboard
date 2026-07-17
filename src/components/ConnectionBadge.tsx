@@ -1,38 +1,22 @@
-import { useEffect, useState } from "react";
-import { pingHealth } from "../api/client";
+import { useAtomValue } from "jotai";
+import type { LiveStatus } from "../state/atoms";
+import { liveStatusAtom } from "../state/atoms";
 
-const PING_INTERVAL_MS = 30_000;
+// Reflects the real state of the SSE stream (owned by LiveRefresh) — no
+// polling: if the stream is up, the backend is up.
+const LABELS: Record<LiveStatus, string> = {
+  connecting: "Conectando…",
+  live: "En vivo",
+  offline: "Reconectando…",
+};
 
-type Connection = "checking" | "online" | "offline";
-
-const LABELS: Record<Connection, string> = {
-  checking: "Verificando…",
-  online: "Conectado",
-  offline: "Sin conexión",
+const CLASSES: Record<LiveStatus, string> = {
+  connecting: "badge-checking",
+  live: "badge-online",
+  offline: "badge-offline",
 };
 
 export function ConnectionBadge() {
-  const [connection, setConnection] = useState<Connection>("checking");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function ping(): Promise<void> {
-      const result = await pingHealth();
-      if (!cancelled) {
-        setConnection(result.ok ? "online" : "offline");
-      }
-    }
-
-    void ping();
-    const timer = setInterval(() => void ping(), PING_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
-
-  return (
-    <span className={`badge badge-${connection}`}>{LABELS[connection]}</span>
-  );
+  const status = useAtomValue(liveStatusAtom);
+  return <span className={`badge ${CLASSES[status]}`}>{LABELS[status]}</span>;
 }

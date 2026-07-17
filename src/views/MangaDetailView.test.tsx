@@ -137,6 +137,57 @@ describe("MangaDetailView", () => {
     expect(lastPutBody).toEqual({ tags: ["accion"] });
   });
 
+  it("sets a manual cover through the cover editor", async () => {
+    await renderDetail();
+    await screen.findByRole("heading", { name: "El Genio entrenador" });
+
+    fireEvent.click(screen.getByText("Cambiar imagen…"));
+    fireEvent.change(screen.getByLabelText("URL de la imagen"), {
+      target: { value: "https://cdn.example.com/portada.jpg" },
+    });
+    await actAsync(() => {
+      fireEvent.click(screen.getByText("Guardar"));
+    });
+
+    expect(lastPutBody).toEqual({
+      coverUrl: "https://cdn.example.com/portada.jpg",
+    });
+    expect(screen.getByText("Quitar imagen")).toBeDefined();
+  });
+
+  it("clears the manual cover", async () => {
+    fetchMock.mockImplementation(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "/api/mangas/m1/history") {
+          return Promise.resolve(
+            jsonResponse({
+              ...history,
+              manga: { ...manga, coverUrl: "https://cdn.example.com/x.jpg" },
+            }),
+          );
+        }
+        if (url === "/api/mangas/m1" && init?.method === "PUT") {
+          lastPutBody = JSON.parse(String(init.body));
+          return Promise.resolve(jsonResponse({ ...manga, coverUrl: null }));
+        }
+        if (url.startsWith("/api/library")) {
+          return Promise.resolve(jsonResponse([]));
+        }
+        return Promise.resolve(jsonResponse({ error: "unexpected" }, 500));
+      },
+    );
+
+    await renderDetail();
+    await screen.findByRole("heading", { name: "El Genio entrenador" });
+
+    await actAsync(() => {
+      fireEvent.click(screen.getByText("Quitar imagen"));
+    });
+
+    expect(lastPutBody).toEqual({ coverUrl: null });
+  });
+
   it("deletes the manga after an explicit confirmation", async () => {
     await renderDetail();
     await screen.findByRole("heading", { name: "El Genio entrenador" });
