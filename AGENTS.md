@@ -34,6 +34,8 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   A contract change in `manga-tracker-api` updates this file in the same commit.
 - All fetching goes through `src/api/client.ts` (`ApiResult<T>`, never throws); UI paths
   are relative so dev proxy and same-origin production behave identically.
+- Dependency direction: `views` → `components`/`state` → `api` → `lib`; `src/api` and
+  `src/lib` never import app code.
 - Shared/cross-view state lives in Jotai atoms; state local to one view stays in the
   component (discriminated-union state, no flag booleans).
 - Rename fixes only `canonicalName`; there is no merge on purpose (append-only events).

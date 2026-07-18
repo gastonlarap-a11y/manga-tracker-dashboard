@@ -1,8 +1,9 @@
 # manga-tracker-dashboard
 
 Web dashboard of the local-first manga tracker. React 19 + Jotai + Vite, Bun as package
-manager. Read-only companion for `manga-tracker-api` (plus manual name corrections): it
-shows the library, per-manga reading history and duplicate suggestions.
+manager. Companion for `manga-tracker-api`: it shows the library, per-manga reading
+history and duplicate suggestions, and holds the manual curation the tracker cannot
+infer — renames, reading status, tags, covers and deletes.
 
 Sibling repos: `../manga-tracker-api` (backend, roadmap in its `PLAN.md`) and
 `../manga-tracker-extension` (MV3 extension that records the reading events).
@@ -26,9 +27,15 @@ bun run dev
 
 ## Views
 
-- `/` — library table (reached chapter, last activity, read count, source sites) with
-  domain and recency filters.
-- `/manga/:id` — full reading history + inline rename (`PUT /api/mangas/:id`).
+- `/` — library as a grid of cover cards (reached chapter, last activity, "continue
+  reading" link) with search, status tabs (reading/completed/dropped), tag filter, domain
+  and recency filters, and library stats. Refreshes live over SSE
+  (`GET /api/events/stream`) whenever the extension records a reading. Covers load
+  through the API proxy (`GET /api/mangas/:id/cover`), which defeats CDN hotlink
+  protection; a deterministic gradient stands in when there is no cover.
+- `/manga/:id` — full reading history plus the manual curation: inline rename, reading
+  status, tags, cover URL (`PUT /api/mangas/:id`) and delete with confirmation
+  (`DELETE /api/mangas/:id`, the only destructive action).
 - `/duplicates` — suspected duplicate pairs; correction is manual rename by design
   (events are append-only, so there is no automatic merge).
 
@@ -43,5 +50,5 @@ bun run dev
 - `src/api/` — hand-duplicated API contract types + fetch client (`ApiResult<T>`)
 - `src/state/` — Jotai atoms (filters + async data with refresh)
 - `src/views/` — one component per route, with colocated tests
-- `src/components/` — layout, connection badge, rename form
+- `src/components/` — layout, SSE live refresh, connection badge, cover image, rename form
 - `src/lib/` — pure utilities (relative dates)

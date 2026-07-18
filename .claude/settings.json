@@ -1,0 +1,57 @@
+{
+  "enabledPlugins": {
+    "ux@dev-plugins": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(bun install:*)",
+      "Bash(bun run test:*)",
+      "Bash(bunx vitest run:*)",
+      "Bash(bun run lint:*)",
+      "Bash(bun run format:*)",
+      "Bash(bun run typecheck:*)",
+      "Bash(bun run build:*)"
+    ],
+    "ask": ["Bash(bun run deploy:*)", "Bash(git push:*)"],
+    "deny": ["Read(**/.env)", "Read(**/.env.*)"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(*.ts)",
+            "command": "jq -r '.tool_input.file_path' | xargs -r bunx biome check --write"
+          },
+          {
+            "type": "command",
+            "if": "Write(*.ts)",
+            "command": "jq -r '.tool_input.file_path' | xargs -r bunx biome check --write"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*.tsx)",
+            "command": "jq -r '.tool_input.file_path' | xargs -r bunx biome check --write"
+          },
+          {
+            "type": "command",
+            "if": "Write(*.tsx)",
+            "command": "jq -r '.tool_input.file_path' | xargs -r bunx biome check --write"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*.json)",
+            "command": "jq -r '.tool_input.file_path' | xargs -r bunx biome check --write"
+          },
+          {
+            "type": "command",
+            "if": "Write(*.json)",
+            "command": "jq -r '.tool_input.file_path' | xargs -r bunx biome check --write"
+          }
+        ]
+      }
+    ]
+  }
+}
