@@ -279,6 +279,7 @@ function MangaCard({
           mangaId={entry.id}
           name={entry.canonicalName}
           coverUrl={entry.coverUrl}
+          coverVersion={entry.coverVersion}
         />
         {entry.reachedChapter && (
           <span className="card-chapter">{entry.reachedChapter.label}</span>

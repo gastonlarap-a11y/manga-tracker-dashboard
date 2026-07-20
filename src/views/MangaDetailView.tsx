@@ -80,6 +80,7 @@ export function MangaDetailView() {
             mangaId={manga.id}
             name={manga.canonicalName}
             coverUrl={manga.coverUrl}
+            coverVersion={manga.coverVersion}
             className="detail-cover"
           />
           <CoverEditor manga={manga} onUpdated={applyManga} />
