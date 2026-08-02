@@ -7,7 +7,12 @@ const COVER_URL = "https://img2mw.xyz/manhwas/carnicero/cover_123.webp";
 describe("CoverImage", () => {
   it("loads the cover through the api proxy with a version bust", () => {
     const { container } = render(
-      <CoverImage mangaId="m1" name="Carnicero Marcial" coverUrl={COVER_URL} />,
+      <CoverImage
+        mangaId="m1"
+        name="Carnicero Marcial"
+        coverUrl={COVER_URL}
+        coverVersion={1}
+      />,
     );
 
     const img = container.querySelector("img");
@@ -16,7 +21,12 @@ describe("CoverImage", () => {
 
   it("renders the gradient fallback when there is no cover", () => {
     const { container } = render(
-      <CoverImage mangaId="m1" name="Carnicero Marcial" coverUrl={null} />,
+      <CoverImage
+        mangaId="m1"
+        name="Carnicero Marcial"
+        coverUrl={null}
+        coverVersion={0}
+      />,
     );
 
     expect(container.querySelector("img")).toBeNull();
@@ -25,7 +35,12 @@ describe("CoverImage", () => {
 
   it("falls back on error and retries when the cover changes", () => {
     const { container, rerender } = render(
-      <CoverImage mangaId="m1" name="Carnicero Marcial" coverUrl={COVER_URL} />,
+      <CoverImage
+        mangaId="m1"
+        name="Carnicero Marcial"
+        coverUrl={COVER_URL}
+        coverVersion={1}
+      />,
     );
 
     const img = container.querySelector("img");
@@ -41,6 +56,37 @@ describe("CoverImage", () => {
         mangaId="m1"
         name="Carnicero Marcial"
         coverUrl="https://cdn.example.com/manual-cover.webp"
+        coverVersion={2}
+      />,
+    );
+    expect(container.querySelector("img")).not.toBeNull();
+  });
+
+  it("retries when only the version bumps (bytes arrived after the url)", () => {
+    const { container, rerender } = render(
+      <CoverImage
+        mangaId="m1"
+        name="Carnicero Marcial"
+        coverUrl={COVER_URL}
+        coverVersion={1}
+      />,
+    );
+
+    const img = container.querySelector("img");
+    if (!img) {
+      throw new Error("expected the proxy img to render");
+    }
+    fireEvent.error(img);
+    expect(container.querySelector("img")).toBeNull();
+
+    // Same url, bumped version: the extension stored bytes locally, so the
+    // previously-404ing proxy src must be retried.
+    rerender(
+      <CoverImage
+        mangaId="m1"
+        name="Carnicero Marcial"
+        coverUrl={COVER_URL}
+        coverVersion={2}
       />,
     );
     expect(container.querySelector("img")).not.toBeNull();

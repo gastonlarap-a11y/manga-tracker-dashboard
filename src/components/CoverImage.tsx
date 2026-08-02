@@ -4,6 +4,7 @@ interface CoverImageProps {
   mangaId: string;
   name: string;
   coverUrl: string | null;
+  coverVersion: number;
   className?: string;
 }
 
@@ -25,14 +26,17 @@ export function CoverImage({
   mangaId,
   name,
   coverUrl,
+  coverVersion,
   className,
 }: CoverImageProps) {
   // Covers load through the API proxy: hotlink-protected CDNs (img2mw.xyz
   // serves manhwaweb covers only with that site's Referer) reject the browser
-  // but not the local server. ?v= busts the day-long proxy cache when the
-  // cover changes; a failure is remembered per src, so a new cover retries.
+  // but not the local server. ?v= includes coverVersion because bytes can
+  // arrive AFTER the url (extension byte capture): the bump busts the
+  // day-long proxy cache and clears the remembered per-src failure, so a
+  // previously-404ing cover retries without a page reload.
   const src = coverUrl
-    ? `/api/mangas/${mangaId}/cover?v=${hashString(coverUrl).toString(36)}`
+    ? `/api/mangas/${mangaId}/cover?v=${hashString(`${coverUrl}:${coverVersion}`).toString(36)}`
     : null;
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 

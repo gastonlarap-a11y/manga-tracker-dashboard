@@ -9,6 +9,9 @@ export interface MangaDto {
   canonicalName: string;
   normalizedSlug: string;
   coverUrl: string | null;
+  // Bumped on every cover mutation; cache-busts /cover.
+  coverVersion: number;
+  hasStoredCover: boolean;
   status: MangaStatus;
   tags: string[];
   createdAt: string;
@@ -29,6 +32,8 @@ export interface LibraryEntryDto {
   canonicalName: string;
   normalizedSlug: string;
   coverUrl: string | null;
+  coverVersion: number;
+  hasStoredCover: boolean;
   status: MangaStatus;
   tags: string[];
   reachedChapter: { number: number; label: string } | null;
