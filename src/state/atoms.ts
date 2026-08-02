@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithRefresh } from "jotai/utils";
-import { getDuplicates, getLibrary } from "../api/client";
+import { getDuplicates, getLibrary, getSyncStatus } from "../api/client";
 import type { MangaStatus } from "../api/types";
 
 // Library filters, shared between the toolbar and the grid.
@@ -57,3 +57,8 @@ export const knownTagsAtom = atom(async (get) => {
 });
 
 export const duplicatesAtom = atomWithRefresh(async () => getDuplicates());
+
+// Off-site sync state, shown by SyncBadge. Refreshed by LiveRefresh on the same
+// SSE signal as the data, because a sync that pulls something from another
+// machine publishes exactly that event.
+export const syncStatusAtom = atomWithRefresh(async () => getSyncStatus());

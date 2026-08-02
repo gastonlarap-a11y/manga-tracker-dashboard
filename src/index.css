@@ -108,6 +108,14 @@ code {
   color: var(--muted);
 }
 
+/* Sync and connection badges share the end of the topbar; the gap stops them
+   reading as one pill when both are visible. */
+.badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* ---- view chrome ---- */
 
 .view-head {

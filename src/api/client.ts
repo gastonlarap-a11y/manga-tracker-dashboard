@@ -5,6 +5,7 @@ import type {
   LibraryEntryDto,
   MangaDto,
   MangaHistoryDto,
+  SyncStatusDto,
   UpdateMangaBody,
 } from "./types";
 
@@ -92,4 +93,10 @@ export function getDuplicates(): Promise<ApiResult<DuplicatePairDto[]>> {
 
 export function pingHealth(): Promise<ApiResult<HealthResponse>> {
   return request("/health");
+}
+
+// Local-only on the backend: it reports the last sync, never dials the cluster,
+// so calling it is as cheap as any other read.
+export function getSyncStatus(): Promise<ApiResult<SyncStatusDto>> {
+  return request("/api/sync/status");
 }
