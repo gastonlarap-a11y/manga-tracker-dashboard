@@ -5,6 +5,7 @@ import {
   duplicatesAtom,
   libraryAtom,
   liveStatusAtom,
+  syncStatusAtom,
 } from "../state/atoms";
 
 const DEBOUNCE_MS = 300;
@@ -22,6 +23,7 @@ export function LiveRefresh() {
   const refreshLibrary = useSetAtom(libraryAtom);
   const refreshBase = useSetAtom(baseLibraryAtom);
   const refreshDuplicates = useSetAtom(duplicatesAtom);
+  const refreshSyncStatus = useSetAtom(syncStatusAtom);
   const setLiveStatus = useSetAtom(liveStatusAtom);
 
   useEffect(() => {
@@ -32,6 +34,9 @@ export function LiveRefresh() {
       refreshLibrary();
       refreshBase();
       refreshDuplicates();
+      // A sync that pulled something from another machine publishes this same
+      // event, so the badge is never staler than the data next to it.
+      refreshSyncStatus();
     }
 
     function onLibraryChanged(): void {
@@ -64,7 +69,13 @@ export function LiveRefresh() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       source.close();
     };
-  }, [refreshLibrary, refreshBase, refreshDuplicates, setLiveStatus]);
+  }, [
+    refreshLibrary,
+    refreshBase,
+    refreshDuplicates,
+    refreshSyncStatus,
+    setLiveStatus,
+  ]);
 
   return null;
 }

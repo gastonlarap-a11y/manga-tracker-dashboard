@@ -61,6 +61,23 @@ export interface HealthResponse {
   status: "ok";
 }
 
+interface SyncMovedDto {
+  mangas: number;
+  events: number;
+  adapters: number;
+  covers: number;
+}
+
+// State of the two-way sync with the store the other machines share.
+// enabled=false just means this install never configured MONGODB_URL.
+export interface SyncStatusDto {
+  enabled: boolean;
+  connected: boolean;
+  lastSyncAt: string | null;
+  lastResult: { pulled: SyncMovedDto; pushed: SyncMovedDto } | null;
+  lastError: { message: string; at: string } | null;
+}
+
 export interface ErrorResponse {
   error: string;
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { LiveRefresh } from "./LiveRefresh";
+import { SyncBadge } from "./SyncBadge";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -15,7 +16,10 @@ export function Layout({ children }: { children: ReactNode }) {
           </NavLink>
           <NavLink to="/duplicates">Duplicados</NavLink>
         </nav>
-        <ConnectionBadge />
+        <span className="badges">
+          <SyncBadge />
+          <ConnectionBadge />
+        </span>
       </header>
       <main>{children}</main>
     </div>
