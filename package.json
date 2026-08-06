@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "bun run build && rm -rf ../manga-tracker-api/public && cp -R dist ../manga-tracker-api/public",
+    "deploy": "bun run build && bun run scripts/publish.ts",
     "test": "vitest run",
     "lint": "biome check .",
     "format": "biome check --write .",
