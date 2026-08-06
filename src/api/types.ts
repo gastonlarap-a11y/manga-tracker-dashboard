@@ -73,13 +73,20 @@ interface SyncMovedDto {
   covers: number;
 }
 
+// What one sync moved, in each direction. Returned by POST /api/sync/now and
+// remembered in the status as `lastResult`.
+export interface SyncResultDto {
+  pulled: SyncMovedDto;
+  pushed: SyncMovedDto;
+}
+
 // State of the two-way sync with the store the other machines share.
 // enabled=false just means this install never configured MONGODB_URL.
 export interface SyncStatusDto {
   enabled: boolean;
   connected: boolean;
   lastSyncAt: string | null;
-  lastResult: { pulled: SyncMovedDto; pushed: SyncMovedDto } | null;
+  lastResult: SyncResultDto | null;
   lastError: { message: string; at: string } | null;
 }
 
