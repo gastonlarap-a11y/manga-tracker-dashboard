@@ -5,6 +5,7 @@ import type {
   LibraryEntryDto,
   MangaDto,
   MangaHistoryDto,
+  SyncResultDto,
   SyncStatusDto,
   UpdateMangaBody,
 } from "./types";
@@ -99,4 +100,14 @@ export function pingHealth(): Promise<ApiResult<HealthResponse>> {
 // so calling it is as cheap as any other read.
 export function getSyncStatus(): Promise<ApiResult<SyncStatusDto>> {
   return request("/api/sync/status");
+}
+
+// Unlike getSyncStatus this one really does dial the shared store, so it is as
+// slow as the network and answers 502 when the cluster is unreachable.
+//
+// Covers are included because this only runs when you ask for it: the automatic
+// schedule moves cover bytes just once every 6 h (they are slow), and a manual
+// "sync now" that left the artwork behind would look broken.
+export function syncNow(): Promise<ApiResult<SyncResultDto>> {
+  return request("/api/sync/now?covers=true", { method: "POST" });
 }

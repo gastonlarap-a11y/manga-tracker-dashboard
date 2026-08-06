@@ -94,6 +94,23 @@ code {
   border: 1px solid var(--border);
 }
 
+/* The sync badge is a <button>. These undo the UA styles so it reads as the
+   same pill as the badge next to it, not as a form control. */
+.badge-action {
+  font-family: inherit;
+  line-height: inherit;
+  background: none;
+  cursor: pointer;
+}
+
+.badge-action:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.badge-action:disabled {
+  cursor: default;
+}
+
 .badge-online {
   color: var(--green);
   border-color: color-mix(in srgb, var(--green) 40%, transparent);
