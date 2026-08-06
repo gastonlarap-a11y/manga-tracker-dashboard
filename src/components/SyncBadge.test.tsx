@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SyncStatusDto } from "../api/types";
-import { jsonResponse, renderWithProviders } from "../test-utils";
+import { actAsync, jsonResponse, renderWithProviders } from "../test-utils";
 import { SyncBadge } from "./SyncBadge";
 
 const status = (over: Partial<SyncStatusDto> = {}): SyncStatusDto => ({
@@ -19,6 +19,24 @@ function mockStatus(body: SyncStatusDto): void {
     vi.fn(async () => jsonResponse(body)),
   );
 }
+
+/**
+ * Answers the status GET and the sync POST separately, so a test can let the
+ * status succeed while the sync fails — which is the interesting case, and the
+ * one a single blanket stub cannot express.
+ */
+function mockStatusAndSync(
+  body: SyncStatusDto,
+  syncResponse: () => Response,
+): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn(async (input: string) =>
+    input.startsWith("/api/sync/now") ? syncResponse() : jsonResponse(body),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+const moved = { mangas: 0, events: 0, adapters: 0, covers: 0 };
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -81,5 +99,37 @@ describe("SyncBadge", () => {
     const { container } = await renderWithProviders(<SyncBadge />);
 
     expect(container.textContent).toBe("");
+  });
+
+  it("syncs on click, covers included", async () => {
+    // The automatic schedule only pulls at boot and every 6 h, and covers move
+    // on the 6 h pass alone — a manual sync that skipped them would leave the
+    // artwork missing on the machine that just asked for it.
+    const fetchMock = mockStatusAndSync(status(), () =>
+      jsonResponse({ pulled: moved, pushed: moved }),
+    );
+
+    await renderWithProviders(<SyncBadge />);
+    await actAsync(() => screen.getByRole("button").click());
+
+    const call = fetchMock.mock.calls.find((args) =>
+      String(args[0]).startsWith("/api/sync/now"),
+    );
+    expect(call?.[0]).toBe("/api/sync/now?covers=true");
+    expect(call?.[1]).toEqual({ method: "POST" });
+  });
+
+  it("surfaces a failed sync instead of leaving the old timestamp up", async () => {
+    // 502 is the backend's expected answer when the shared store is
+    // unreachable, not a bug — but the badge must stop claiming it is synced.
+    mockStatusAndSync(status(), () =>
+      jsonResponse({ error: "querySrv ECONNREFUSED" }, 502),
+    );
+
+    await renderWithProviders(<SyncBadge />);
+    await actAsync(() => screen.getByRole("button").click());
+
+    const badge = screen.getByText("Sin sincronizar");
+    expect(badge.getAttribute("title")).toBe("querySrv ECONNREFUSED");
   });
 });
