@@ -322,6 +322,83 @@ button.ghost:hover {
   min-width: 220px;
 }
 
+/* Actions wrap onto their own full-width row so the two titles stay side by
+   side no matter how long the "Unir en «…»" labels get. */
+.pair-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-basis: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 0.7rem;
+}
+
+.warning {
+  color: var(--yellow);
+  font-size: 0.8rem;
+}
+
+/* ---- merged sources (detail view) ---- */
+
+.merged-sources {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.alias-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0;
+  margin: 0;
+}
+
+.alias-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chip.muted {
+  opacity: 0.6;
+}
+
+.merge-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  min-width: 260px;
+}
+
+.merge-picker ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.merge-picker ul button {
+  width: 100%;
+  text-align: left;
+}
+
+.card-sources {
+  color: var(--muted);
+}
+
 /* ---- stats row ---- */
 
 .stats {

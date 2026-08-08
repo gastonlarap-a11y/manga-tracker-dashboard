@@ -1,8 +1,20 @@
 import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { deleteManga, getMangaHistory, updateManga } from "../api/client";
-import type { MangaDto, MangaHistoryDto, MangaStatus } from "../api/types";
+import {
+  deleteManga,
+  getLibrary,
+  getMangaHistory,
+  mergeMangas,
+  unmergeManga,
+  updateManga,
+} from "../api/client";
+import type {
+  LibraryEntryDto,
+  MangaDto,
+  MangaHistoryDto,
+  MangaStatus,
+} from "../api/types";
 import { CoverImage } from "../components/CoverImage";
 import { RenameForm } from "../components/RenameForm";
 import { formatDate, relativeDate } from "../lib/dates";
@@ -24,7 +36,11 @@ export function MangaDetailView() {
   const [state, setState] = useState<HistoryState>({ kind: "loading" });
   const refreshLibrary = useSetAtom(libraryAtom);
   const refreshBase = useSetAtom(baseLibraryAtom);
+  // Bumped after a merge or an unmerge: the whole history changes shape, so it
+  // is refetched rather than patched in place.
+  const [reloads, setReloads] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `reloads` is a refetch trigger, not a value the effect reads — a merge changes the shape of the whole history.
   useEffect(() => {
     if (!id) {
       return;
@@ -44,7 +60,13 @@ export function MangaDetailView() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloads]);
+
+  function reloadEverything(): void {
+    setReloads((count) => count + 1);
+    refreshLibrary();
+    refreshBase();
+  }
 
   function applyManga(manga: MangaDto): void {
     setState((previous) =>
@@ -66,7 +88,7 @@ export function MangaDetailView() {
     );
   }
 
-  const { manga, events } = state.history;
+  const { manga, aliases, events } = state.history;
   const lastUrl = events[0]?.sourceUrl ?? null;
 
   return (
@@ -97,8 +119,14 @@ export function MangaDetailView() {
           <StatusPicker manga={manga} onUpdated={applyManga} />
           <TagsEditor manga={manga} onUpdated={applyManga} />
           <p className="meta">
-            Slug: <code>{manga.normalizedSlug}</code> · {events.length} lecturas
+            Slug: <code>{manga.normalizedSlug}</code> · {events.length}{" "}
+            capítulos leídos
           </p>
+          <MergedSources
+            manga={manga}
+            aliases={aliases}
+            onChanged={reloadEverything}
+          />
           {lastUrl && (
             <a
               className="continue"
@@ -132,6 +160,12 @@ export function MangaDetailView() {
                 </td>
                 <td>
                   <span className="chip">{event.sourceDomain}</span>
+                  {/* Same chapter, also read on another site of this card. */}
+                  {event.alsoReadOn.map((domain) => (
+                    <span key={domain} className="chip muted">
+                      {domain}
+                    </span>
+                  ))}
                 </td>
                 <td>
                   <a href={event.sourceUrl} target="_blank" rel="noreferrer">
@@ -145,6 +179,161 @@ export function MangaDetailView() {
       )}
       <DangerZone mangaId={manga.id} name={manga.canonicalName} />
     </section>
+  );
+}
+
+type MergeState =
+  | { kind: "idle" }
+  | { kind: "picking"; query: string; candidates: LibraryEntryDto[] }
+  | { kind: "working" }
+  | { kind: "error"; error: string };
+
+/**
+ * The manual answer to "these two are the same manga". Needed because no local
+ * heuristic can relate a Spanish title to an English one — and asking an
+ * external catalogue would trade the whole local-first design for a guess.
+ *
+ * The manga being viewed is always the one that survives: its name, status and
+ * tags are the ones already curated here.
+ */
+function MergedSources({
+  manga,
+  aliases,
+  onChanged,
+}: {
+  manga: MangaDto;
+  aliases: MangaDto[];
+  onChanged: () => void;
+}) {
+  const [state, setState] = useState<MergeState>({ kind: "idle" });
+
+  async function openPicker(): Promise<void> {
+    setState({ kind: "working" });
+    const result = await getLibrary();
+    setState(
+      result.ok
+        ? {
+            kind: "picking",
+            query: "",
+            // Every other card is a valid target: the point is joining titles
+            // that look nothing alike.
+            candidates: result.data.filter((entry) => entry.id !== manga.id),
+          }
+        : { kind: "error", error: result.error },
+    );
+  }
+
+  async function merge(aliasId: string): Promise<void> {
+    setState({ kind: "working" });
+    const result = await mergeMangas(manga.id, aliasId);
+    if (result.ok) {
+      setState({ kind: "idle" });
+      onChanged();
+    } else {
+      setState({ kind: "error", error: result.error });
+    }
+  }
+
+  async function detach(aliasId: string): Promise<void> {
+    setState({ kind: "working" });
+    const result = await unmergeManga(aliasId);
+    if (result.ok) {
+      setState({ kind: "idle" });
+      onChanged();
+    } else {
+      setState({ kind: "error", error: result.error });
+    }
+  }
+
+  const busy = state.kind === "working";
+
+  return (
+    <div className="merged-sources">
+      {aliases.length > 0 && (
+        <ul className="alias-list">
+          {aliases.map((alias) => (
+            <li key={alias.id}>
+              <span className="chip">{alias.canonicalName}</span>
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy}
+                onClick={() => void detach(alias.id)}
+              >
+                Separar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {state.kind === "picking" ? (
+        <MergePicker
+          query={state.query}
+          candidates={state.candidates}
+          onQuery={(query) =>
+            setState({ kind: "picking", query, candidates: state.candidates })
+          }
+          onPick={(id) => void merge(id)}
+          onCancel={() => setState({ kind: "idle" })}
+        />
+      ) : (
+        <button
+          type="button"
+          className="ghost"
+          disabled={busy}
+          onClick={() => void openPicker()}
+        >
+          Es el mismo que…
+        </button>
+      )}
+      {state.kind === "error" && <span className="error">{state.error}</span>}
+    </div>
+  );
+}
+
+// Client-side filtering: the library is small enough that the whole list is
+// already in hand, exactly like the toolbar's search.
+function MergePicker({
+  query,
+  candidates,
+  onQuery,
+  onPick,
+  onCancel,
+}: {
+  query: string;
+  candidates: LibraryEntryDto[];
+  onQuery: (query: string) => void;
+  onPick: (id: string) => void;
+  onCancel: () => void;
+}) {
+  const needle = query.trim().toLowerCase();
+  const matches = candidates
+    .filter((entry) => entry.canonicalName.toLowerCase().includes(needle))
+    .slice(0, 8);
+
+  return (
+    <div className="merge-picker">
+      <input
+        value={query}
+        aria-label="Buscar el manga a unir"
+        placeholder="Buscar en la biblioteca…"
+        onChange={(event) => onQuery(event.target.value)}
+      />
+      <ul>
+        {matches.map((entry) => (
+          <li key={entry.id}>
+            <button type="button" onClick={() => onPick(entry.id)}>
+              {entry.canonicalName}
+            </button>
+          </li>
+        ))}
+        {matches.length === 0 && <li className="meta">Sin coincidencias.</li>}
+      </ul>
+      <button type="button" className="ghost" onClick={onCancel}>
+        Cancelar
+      </button>
+    </div>
   );
 }
 

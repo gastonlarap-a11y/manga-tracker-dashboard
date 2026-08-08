@@ -298,6 +298,16 @@ function MangaCard({
           {entry.lastActivity
             ? relativeDate(entry.lastActivity.readAt)
             : "sin lecturas"}
+          {/* One card, several sites: the series was read on more than one. */}
+          {entry.sourceDomains.length > 1 && (
+            <span
+              className="card-sources"
+              title={entry.sourceDomains.join(", ")}
+            >
+              {" · "}
+              {entry.sourceDomains.length} sitios
+            </span>
+          )}
         </span>
         {entry.lastSourceUrl && (
           <a
