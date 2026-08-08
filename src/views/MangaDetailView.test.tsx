@@ -5,8 +5,10 @@ import type { MangaHistoryDto } from "../api/types";
 import {
   actAsync,
   jsonResponse,
+  libraryEntry,
   mangaDto,
   renderWithProviders,
+  requestBody,
 } from "../test-utils";
 import { MangaDetailView } from "./MangaDetailView";
 
@@ -22,6 +24,7 @@ const manga = mangaDto({
 
 const history: MangaHistoryDto = {
   manga,
+  aliases: [],
   events: [
     {
       id: "e1",
@@ -31,6 +34,7 @@ const history: MangaHistoryDto = {
       sourceUrl: "https://olympusxyz.com/capitulo/130729/",
       sourceDomain: "olympusxyz.com",
       readAt: "2026-07-15T10:00:00.000Z",
+      alsoReadOn: [],
     },
   ],
 };
@@ -212,5 +216,79 @@ describe("MangaDetailView", () => {
     await renderDetail();
 
     expect(await screen.findByText(/Manga not found/)).toBeDefined();
+  });
+});
+
+describe("MangaDetailView: joining two titles by hand", () => {
+  const other = libraryEntry({ id: "m2", canonicalName: "Genius Trainer" });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "/api/mangas/m1/history") {
+          return Promise.resolve(jsonResponse(history));
+        }
+        if (url === "/api/library") {
+          return Promise.resolve(jsonResponse([libraryEntry(), other]));
+        }
+        if (url === "/api/duplicates/merge" && init?.method === "POST") {
+          return Promise.resolve(
+            jsonResponse({ canonical: manga, alias: mangaDto({ id: "m2" }) }),
+          );
+        }
+        return Promise.resolve(jsonResponse({}));
+      },
+    );
+  });
+
+  it("merges a manga picked from the library, keeping the one on screen", async () => {
+    // The case no heuristic can solve: two titles in different languages.
+    await renderDetail();
+    await screen.findByRole("heading", { name: "El Genio entrenador" });
+
+    await actAsync(() => {
+      fireEvent.click(screen.getByText("Es el mismo que…"));
+    });
+    await actAsync(() => {
+      fireEvent.click(screen.getByText("Genius Trainer"));
+    });
+
+    const mergeCall = fetchMock.mock.calls.find(
+      (call) => String(call[0]) === "/api/duplicates/merge",
+    );
+    expect(requestBody(mergeCall)).toEqual({
+      canonicalId: "m1",
+      aliasId: "m2",
+    });
+  });
+
+  it("lists the merged-in titles and can detach one again", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/mangas/m1/history") {
+        return Promise.resolve(
+          jsonResponse({
+            ...history,
+            aliases: [mangaDto({ id: "m2", canonicalName: "Genius Trainer" })],
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse(mangaDto({ id: "m2" })));
+    });
+
+    await renderDetail();
+    await screen.findByRole("heading", { name: "El Genio entrenador" });
+    expect(screen.getByText("Genius Trainer")).toBeDefined();
+
+    await actAsync(() => {
+      fireEvent.click(screen.getByText("Separar"));
+    });
+
+    const call = fetchMock.mock.calls.find(
+      (entry) => String(entry[0]) === "/api/duplicates/unmerge",
+    );
+    expect(requestBody(call)).toEqual({ id: "m2" });
   });
 });
