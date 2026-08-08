@@ -35,6 +35,19 @@ export async function actAsync(interaction: () => void): Promise<void> {
   });
 }
 
+/**
+ * The parsed JSON body of a recorded fetch call. Fails loudly when the call was
+ * never made, which is the assertion a test actually wants — reaching into
+ * `call?.[1]` would silently read `undefined` instead.
+ */
+export function requestBody(call: unknown[] | undefined): unknown {
+  if (call === undefined) {
+    throw new Error("expected a matching fetch call, found none");
+  }
+  const init = call[1] as RequestInit | undefined;
+  return JSON.parse(String(init?.body));
+}
+
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -53,6 +66,7 @@ export function mangaDto(overrides: Partial<MangaDto> = {}): MangaDto {
     status: "reading",
     tags: [],
     createdAt: "2026-07-01T00:00:00.000Z",
+    mergedIntoSlug: null,
     ...overrides,
   };
 }
@@ -77,6 +91,7 @@ export function libraryEntry(
     lastSourceUrl: "https://olympusxyz.com/one-piece/capitulo/1100",
     readCount: 3,
     sourceDomains: ["olympusxyz.com"],
+    aliasCount: 0,
     ...overrides,
   };
 }

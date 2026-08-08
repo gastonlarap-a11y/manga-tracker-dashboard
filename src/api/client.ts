@@ -5,6 +5,7 @@ import type {
   LibraryEntryDto,
   MangaDto,
   MangaHistoryDto,
+  MergeResultDto,
   SyncResultDto,
   SyncStatusDto,
   UpdateMangaBody,
@@ -90,6 +91,41 @@ export function deleteManga(id: string): Promise<ApiResult<null>> {
 
 export function getDuplicates(): Promise<ApiResult<DuplicatePairDto[]>> {
   return request("/api/duplicates");
+}
+
+// Declares two mangas to be the same series. The canonical keeps the card, its
+// name and its status; the other becomes an alias. No reading is moved or lost
+// on either side — which is why unmerge below can undo it exactly.
+export function mergeMangas(
+  canonicalId: string,
+  aliasId: string,
+): Promise<ApiResult<MergeResultDto>> {
+  return request("/api/duplicates/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ canonicalId, aliasId }),
+  });
+}
+
+export function unmergeManga(id: string): Promise<ApiResult<MangaDto>> {
+  return request("/api/duplicates/unmerge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+}
+
+// "These two are not the same manga": the pair stops being suggested, here and
+// on every other machine after the next sync.
+export function dismissDuplicate(
+  idA: string,
+  idB: string,
+): Promise<ApiResult<null>> {
+  return request("/api/duplicates/dismiss", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idA, idB }),
+  });
 }
 
 export function pingHealth(): Promise<ApiResult<HealthResponse>> {
