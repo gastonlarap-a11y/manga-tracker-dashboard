@@ -34,9 +34,17 @@ export type EmbedWindow = {
  * Listens for the embedder's greeting and, once greeted, forwards clicks on
  * external links to it instead of letting them open a tab that never appears.
  *
- * The handshake is what keeps this inert everywhere else: any site could put
- * this page in an iframe, but without the greeting no click listener is ever
- * installed, so nothing is posted anywhere.
+ * The handshake keeps this inert where nobody asked for it: an embedder that
+ * never says hello gets the plain browser behaviour. It is not an access
+ * check, and should not be read as one. The greeting's origin is not verified —
+ * the packaged app's is `wails://wails/`, and how WebKit and WebView2 present
+ * that has never been measured — so any page that frames this dashboard can
+ * send it, and then receives the URL of each external link clicked inside its
+ * frame. Nothing more: no data from the page, nothing executed.
+ *
+ * Closing that belongs to the backend, as a `frame-ancestors` policy naming the
+ * app's origins, and only once those have been observed in a real build on
+ * both systems. Guessed wrong, it blanks the dashboard inside the app.
  */
 export function installEmbedLinkBridge(target: EmbedWindow = window): void {
   if ((target.parent as unknown) === (target as unknown)) {
