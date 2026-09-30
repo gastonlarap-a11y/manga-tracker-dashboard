@@ -1,6 +1,6 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { unwrap } from "jotai/utils";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { syncNow } from "../api/client";
 import type { SyncStatusDto } from "../api/types";
 import { relativeDate } from "../lib/dates";
@@ -72,6 +72,7 @@ export function SyncBadge() {
   // read back from the server through syncStatusAtom.
   const [running, setRunning] = useState(false);
   const [clickError, setClickError] = useState<string | null>(null);
+  const hintId = useId();
 
   if (result === undefined || !result.ok || !result.data.enabled) {
     return null;
@@ -93,15 +94,26 @@ export function SyncBadge() {
 
   const { label, tone, hint } = appearance(result.data, running, clickError);
 
+  // The reason a sync failed lived only in `title`, which neither a keyboard
+  // nor a screen reader ever reaches. It is the button's description now, and
+  // the label is a polite live region, so "Sin sincronizar" is announced when
+  // it happens instead of waiting to be found.
   return (
-    <button
-      type="button"
-      className={`badge badge-action ${tone}`}
-      onClick={() => void run()}
-      disabled={running}
-      title={hint}
-    >
-      {label}
-    </button>
+    <>
+      <button
+        type="button"
+        className={`badge badge-action ${tone}`}
+        onClick={() => void run()}
+        disabled={running}
+        title={hint}
+        aria-describedby={hintId}
+        aria-live="polite"
+      >
+        {label}
+      </button>
+      <span id={hintId} className="visually-hidden">
+        {hint}
+      </span>
+    </>
   );
 }

@@ -4,7 +4,10 @@
   --surface-2: #24283b;
   --border: #2f334d;
   --text: #c0caf5;
-  --muted: #565f89;
+  /* 5.8:1 on --bg and 4.7:1 on --surface-2, over WCAG AA's 4.5:1 for text.
+     The Tokyo Night comment grey it replaced (#565f89) was 2.9:1, and it is
+     what nav links, table headers, chips and hints are written in. */
+  --muted: #8a91b8;
   --accent: #7aa2f7;
   --green: #9ece6a;
   --red: #f7768e;
@@ -198,6 +201,28 @@ input {
 select:focus,
 input:focus {
   outline: 1px solid var(--accent);
+}
+
+/* Buttons and links had only the browser's default ring, which on this dark
+   background is close to invisible. focus-visible, so a mouse click does not
+   leave a ring behind. */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Text for screen readers that the layout shows another way. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ---- tables ---- */

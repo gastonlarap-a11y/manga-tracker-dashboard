@@ -1,7 +1,6 @@
 import type {
   DuplicatePairDto,
   ErrorResponse,
-  HealthResponse,
   LibraryEntryDto,
   MangaDto,
   MangaHistoryDto,
@@ -126,10 +125,6 @@ export function dismissDuplicate(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idA, idB }),
   });
-}
-
-export function pingHealth(): Promise<ApiResult<HealthResponse>> {
-  return request("/health");
 }
 
 // Local-only on the backend: it reports the last sync, never dials the cluster,

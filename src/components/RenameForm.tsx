@@ -80,7 +80,11 @@ export function RenameForm({
       >
         Cancelar
       </button>
-      {state.kind === "error" && <span className="error">{state.error}</span>}
+      {state.kind === "error" && (
+        <span className="error" role="alert">
+          {state.error}
+        </span>
+      )}
     </form>
   );
 }

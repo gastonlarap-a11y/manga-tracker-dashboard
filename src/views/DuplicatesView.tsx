@@ -131,7 +131,11 @@ function PairRow({
         >
           No son el mismo
         </button>
-        {state.kind === "error" && <span className="error">{state.error}</span>}
+        {state.kind === "error" && (
+          <span className="error" role="alert">
+            {state.error}
+          </span>
+        )}
       </div>
     </li>
   );

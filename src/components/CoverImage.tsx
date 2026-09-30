@@ -35,8 +35,10 @@ export function CoverImage({
   // arrive AFTER the url (extension byte capture): the bump busts the
   // day-long proxy cache and clears the remembered per-src failure, so a
   // previously-404ing cover retries without a page reload.
+  // Encoded like every other path in src/api/client.ts: an id is data, and
+  // raw in a path it would be read as one.
   const src = coverUrl
-    ? `/api/mangas/${mangaId}/cover?v=${hashString(`${coverUrl}:${coverVersion}`).toString(36)}`
+    ? `/api/mangas/${encodeURIComponent(mangaId)}/cover?v=${hashString(`${coverUrl}:${coverVersion}`).toString(36)}`
     : null;
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 

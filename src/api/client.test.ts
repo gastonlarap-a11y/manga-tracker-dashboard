@@ -5,7 +5,6 @@ import {
   getDuplicates,
   getLibrary,
   getMangaHistory,
-  pingHealth,
   updateManga,
 } from "./client";
 
@@ -68,17 +67,6 @@ describe("deleteManga", () => {
   });
 });
 
-describe("pingHealth", () => {
-  it("hits the health endpoint", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
-
-    const result = await pingHealth();
-
-    expect(fetchMock).toHaveBeenCalledWith("/health", undefined);
-    expect(result).toEqual({ ok: true, data: { status: "ok" } });
-  });
-});
-
 describe("error handling", () => {
   it("maps API error bodies with their status", async () => {
     fetchMock.mockResolvedValue(
@@ -105,7 +93,7 @@ describe("error handling", () => {
   it("reports network failures", async () => {
     fetchMock.mockRejectedValue(new Error("connection refused"));
 
-    const result = await pingHealth();
+    const result = await getDuplicates();
 
     expect(result).toEqual({ ok: false, error: "connection refused" });
   });
