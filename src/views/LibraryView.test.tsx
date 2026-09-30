@@ -90,6 +90,40 @@ describe("LibraryView", () => {
     expect(screen.queryByText("One Piece")).toBeNull();
   });
 
+  it("says which tag chips are on, the way the status tabs already did", async () => {
+    await renderWithProviders(<LibraryView />);
+    await screen.findByText("One Piece");
+    await actAsync(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Todos" }));
+    });
+
+    const chip = () => screen.getByRole("button", { name: "accion" });
+    expect(chip().getAttribute("aria-pressed")).toBe("false");
+    await actAsync(() => {
+      fireEvent.click(chip());
+    });
+    expect(chip().getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("gives each card one link, named after its manga", async () => {
+    // The cover used to be a second, unnamed link to the same page.
+    await renderWithProviders(<LibraryView />);
+    await screen.findByText("One Piece");
+
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("href") === "/manga/m1");
+    expect(links.map((link) => link.textContent)).toEqual(["One Piece"]);
+  });
+
+  it("opens with a heading a screen reader can land on", async () => {
+    await renderWithProviders(<LibraryView />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Biblioteca" }),
+    ).toBeDefined();
+  });
+
   it("links continue-reading to the last chapter url", async () => {
     await renderWithProviders(<LibraryView />);
     await screen.findByText("One Piece");

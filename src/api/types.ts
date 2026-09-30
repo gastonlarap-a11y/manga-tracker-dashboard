@@ -89,10 +89,6 @@ export interface MergeResultDto {
   alias: MangaDto | null;
 }
 
-export interface HealthResponse {
-  status: "ok";
-}
-
 interface SyncMovedDto {
   mangas: number;
   events: number;

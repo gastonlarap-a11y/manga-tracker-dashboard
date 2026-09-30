@@ -1,5 +1,10 @@
 # Cómo se construyó manga-tracker-dashboard
 
+> **Crónica, no referencia.** Cuenta los tres primeros commits tal como ocurrieron. Lo que
+> vino después —fusionar duplicados, el badge de sync con su botón, el badge de conexión
+> por SSE en vez de polling, el puente de enlaces para la app de escritorio— no está acá:
+> el estado actual es el de `AGENTS.md` y `git log`.
+
 Crónica completa de la construcción del dashboard, paso a paso y en el **orden real** en
 que ocurrió (columna vertebral: `git log --oneline --reverse` — tres commits, expandidos
 acá en los pasos internos reales de cada uno). Para cada paso: qué se hizo, con qué

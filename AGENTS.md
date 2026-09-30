@@ -14,7 +14,11 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   unfiltered `baseLibraryAtom` snapshot (stats + select/chip options)
 - `src/views/` — one component per route (`/`, `/manga/:id`, `/duplicates`) with
   colocated `*.test.tsx`; the library is a cover-card grid with a sticky toolbar
-- `src/components/` — `Layout` (nav + badge), `LiveRefresh` (SSE
+- `src/lib/embed.ts` — the link bridge for when the desktop app shows this page in a
+  frame: after the app's greeting, external links are posted up instead of opened (Wails
+  implements no new-window handler). Inert in a normal tab. Not an access check.
+- `src/components/` — `Layout` (nav + connection and sync badges; `SyncBadge` is also the
+  "sync now" button), `LiveRefresh` (SSE
   `/api/events/stream` → refreshes every data atom on events, on (re)open and on the
   tab becoming visible; owns `liveStatusAtom`), `ConnectionBadge` (shows the real
   stream state, no polling), `CoverImage` (cover with deterministic gradient
@@ -38,7 +42,9 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   `src/lib` never import app code.
 - Shared/cross-view state lives in Jotai atoms; state local to one view stays in the
   component (discriminated-union state, no flag booleans).
-- Rename fixes only `canonicalName`; there is no merge on purpose (append-only events).
+- Rename fixes only `canonicalName`. Merging two cards (`/api/duplicates/merge`) groups them
+  without rewriting a single event — events stay append-only — and unmerge undoes it.
+  Nothing merges automatically: a wrong merge is worse than a duplicate the user can join.
 - Reading status and tags are MANUAL (chapter pages cannot declare genres reliably);
   deletes require explicit confirmation and are the only destructive action.
 - Tests: components that read async atoms suspend — always render through the async

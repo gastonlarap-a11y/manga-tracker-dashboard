@@ -148,7 +148,9 @@ export function MangaDetailView() {
               <th>Capítulo</th>
               <th>Fecha</th>
               <th>Sitio</th>
-              <th></th>
+              <th>
+                <span className="visually-hidden">Enlace</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -287,7 +289,11 @@ function MergedSources({
           Es el mismo que…
         </button>
       )}
-      {state.kind === "error" && <span className="error">{state.error}</span>}
+      {state.kind === "error" && (
+        <span className="error" role="alert">
+          {state.error}
+        </span>
+      )}
     </div>
   );
 }
@@ -378,7 +384,11 @@ function StatusPicker({
           </button>
         ))}
       </div>
-      {error && <span className="error">{error}</span>}
+      {error && (
+        <span className="error" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -446,7 +456,11 @@ function TagsEditor({
           onChange={(event) => setDraft(event.target.value)}
         />
       </form>
-      {error && <span className="error">{error}</span>}
+      {error && (
+        <span className="error" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -535,7 +549,11 @@ function CoverEditor({
           Cancelar
         </button>
       </form>
-      {state.kind === "error" && <span className="error">{state.error}</span>}
+      {state.kind === "error" && (
+        <span className="error" role="alert">
+          {state.error}
+        </span>
+      )}
     </div>
   );
 }
@@ -600,7 +618,11 @@ function DangerZone({ mangaId, name }: { mangaId: string; name: string }) {
       >
         Cancelar
       </button>
-      {zone.kind === "error" && <span className="error">{zone.error}</span>}
+      {zone.kind === "error" && (
+        <span className="error" role="alert">
+          {zone.error}
+        </span>
+      )}
     </div>
   );
 }

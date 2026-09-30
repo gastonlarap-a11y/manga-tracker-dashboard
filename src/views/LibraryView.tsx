@@ -58,6 +58,9 @@ function normalizeText(value: string): string {
 export function LibraryView() {
   return (
     <section>
+      {/* The other views open with a heading; the library had none, so a
+          screen reader landing here had nothing to navigate by. */}
+      <h1 className="visually-hidden">Biblioteca</h1>
       <Suspense fallback={<p className="status">Cargando biblioteca…</p>}>
         <StatsRow />
         <LibraryToolbar />
@@ -192,6 +195,7 @@ function LibraryToolbar() {
               <button
                 key={tag}
                 type="button"
+                aria-pressed={tagFilter.includes(tag)}
                 className={`chip selectable ${
                   tagFilter.includes(tag) ? "active" : ""
                 }`}
@@ -274,7 +278,16 @@ function MangaCard({
 }) {
   return (
     <article className="card">
-      <Link to={`/manga/${entry.id}`} className="card-cover">
+      {/* The same destination as the title below, which carries the name.
+          Out of the tab order and the accessibility tree, so each card is one
+          link to a screen reader instead of an unnamed one followed by a
+          named one. */}
+      <Link
+        to={`/manga/${entry.id}`}
+        className="card-cover"
+        aria-hidden="true"
+        tabIndex={-1}
+      >
         <CoverImage
           mangaId={entry.id}
           name={entry.canonicalName}

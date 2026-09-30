@@ -36,8 +36,10 @@ bun run dev
 - `/manga/:id` — full reading history plus the manual curation: inline rename, reading
   status, tags, cover URL (`PUT /api/mangas/:id`) and delete with confirmation
   (`DELETE /api/mangas/:id`, the only destructive action).
-- `/duplicates` — suspected duplicate pairs; correction is manual rename by design
-  (events are append-only, so there is no automatic merge).
+- `/duplicates` — suspected duplicate pairs: merge a pair into one card
+  (`POST /api/duplicates/merge`, undone from the manga's page with unmerge), or dismiss
+  one that is not the same series. Nothing merges on its own — events are append-only,
+  and merging groups the cards without rewriting them.
 
 ## Commands
 
@@ -50,5 +52,7 @@ bun run dev
 - `src/api/` — hand-duplicated API contract types + fetch client (`ApiResult<T>`)
 - `src/state/` — Jotai atoms (filters + async data with refresh)
 - `src/views/` — one component per route, with colocated tests
-- `src/components/` — layout, SSE live refresh, connection badge, cover image, rename form
-- `src/lib/` — pure utilities (relative dates)
+- `src/components/` — layout, SSE live refresh, connection badge, sync badge (also the
+  "sync now" button), cover image, rename form
+- `src/lib/` — pure utilities (relative dates) and the embed link bridge (`embed.ts`),
+  which hands external links to the desktop app when the dashboard runs inside it

@@ -28,3 +28,6 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
+      # The build is what ships: the desktop release copies dist/ into the
+      # backend. Typechecking the source does not prove Vite can bundle it.
+      - run: bun run build
