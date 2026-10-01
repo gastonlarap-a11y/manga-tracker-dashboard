@@ -1,0 +1,143 @@
+/* Suspected duplicates: each pair side by side, covers included, so the call
+   is made by looking rather than by reading two titles. */
+
+.duplicates {
+  display: grid;
+  gap: 8px;
+}
+
+.pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pair {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 18px;
+}
+
+.pair-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* A ring filled to the similarity, drawn with a conic gradient and masked
+   into a ring — no SVG, no layout. */
+.meter {
+  --size: 40px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--warm) calc(var(--value) * 1turn),
+    var(--surface-3) 0
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 6px),
+    black calc(100% - 5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 6px),
+    black calc(100% - 5px)
+  );
+}
+
+.meter-value {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.pair-why {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pair .warning {
+  flex-basis: 100%;
+}
+
+.pair-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .pair-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pair-side {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.pair-cover {
+  display: block;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.pair-cover .cover-fallback {
+  font-size: 1.4rem;
+}
+
+.pair-info {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pair-name {
+  color: var(--text);
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.pair-name:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* "Unir en «…»" carries a whole title; it wraps rather than overflows. */
+.pair-info .tonal {
+  height: auto;
+  padding-block: 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1.25;
+  text-align: left;
+  white-space: normal;
+}
+
+.pair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}

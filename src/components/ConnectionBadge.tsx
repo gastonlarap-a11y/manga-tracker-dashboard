@@ -18,5 +18,10 @@ const CLASSES: Record<LiveStatus, string> = {
 
 export function ConnectionBadge() {
   const status = useAtomValue(liveStatusAtom);
-  return <span className={`badge ${CLASSES[status]}`}>{LABELS[status]}</span>;
+  return (
+    <span className={`badge ${CLASSES[status]}`}>
+      <span className="badge-dot" aria-hidden="true" />
+      {LABELS[status]}
+    </span>
+  );
 }

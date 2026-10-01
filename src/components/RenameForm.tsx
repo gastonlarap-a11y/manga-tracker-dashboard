@@ -1,3 +1,4 @@
+import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { updateManga } from "../api/client";
 import type { MangaDto } from "../api/types";
@@ -27,9 +28,10 @@ export function RenameForm({
     return (
       <button
         type="button"
-        className="ghost"
+        className="ghost small"
         onClick={() => setState({ kind: "editing", value: currentName })}
       >
+        <Pencil aria-hidden="true" />
         Renombrar
       </button>
     );
@@ -69,12 +71,12 @@ export function RenameForm({
           setState({ kind: "editing", value: event.target.value })
         }
       />
-      <button type="submit" disabled={saving}>
+      <button type="submit" className="primary small" disabled={saving}>
         Guardar
       </button>
       <button
         type="button"
-        className="ghost"
+        className="ghost small"
         disabled={saving}
         onClick={() => setState({ kind: "idle" })}
       >

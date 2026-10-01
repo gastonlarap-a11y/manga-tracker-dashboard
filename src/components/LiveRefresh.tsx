@@ -1,6 +1,7 @@
 import { useSetAtom } from "jotai";
 import { useEffect } from "react";
 import {
+  activityAtom,
   baseLibraryAtom,
   duplicatesAtom,
   libraryAtom,
@@ -23,6 +24,7 @@ export function LiveRefresh() {
   const refreshLibrary = useSetAtom(libraryAtom);
   const refreshBase = useSetAtom(baseLibraryAtom);
   const refreshDuplicates = useSetAtom(duplicatesAtom);
+  const refreshActivity = useSetAtom(activityAtom);
   const refreshSyncStatus = useSetAtom(syncStatusAtom);
   const setLiveStatus = useSetAtom(liveStatusAtom);
 
@@ -34,6 +36,7 @@ export function LiveRefresh() {
       refreshLibrary();
       refreshBase();
       refreshDuplicates();
+      refreshActivity();
       // A sync that pulled something from another machine publishes this same
       // event, so the badge is never staler than the data next to it.
       refreshSyncStatus();
@@ -73,6 +76,7 @@ export function LiveRefresh() {
     refreshLibrary,
     refreshBase,
     refreshDuplicates,
+    refreshActivity,
     refreshSyncStatus,
     setLiveStatus,
   ]);

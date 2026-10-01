@@ -1,4 +1,15 @@
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
+import { unwrap } from "jotai/utils";
+import {
+  ArrowLeft,
+  Combine,
+  ImageOff,
+  ImagePlus,
+  Play,
+  Trash,
+  Unlink,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
@@ -10,15 +21,18 @@ import {
   updateManga,
 } from "../api/client";
 import type {
+  HistoryEventDto,
   LibraryEntryDto,
   MangaDto,
   MangaHistoryDto,
   MangaStatus,
 } from "../api/types";
-import { CoverImage } from "../components/CoverImage";
+import { AmbientCover, CoverImage } from "../components/CoverImage";
 import { RenameForm } from "../components/RenameForm";
+import { DetailSkeleton } from "../components/Skeleton";
 import { formatDate, relativeDate } from "../lib/dates";
 import { baseLibraryAtom, libraryAtom } from "../state/atoms";
+import { ReadingHistory } from "./detail/ReadingHistory";
 
 type HistoryState =
   | { kind: "loading" }
@@ -31,9 +45,23 @@ const STATUS_CHOICES: { value: MangaStatus; label: string }[] = [
   { value: "dropped", label: "Abandonado" },
 ];
 
+const shortDate = new Intl.DateTimeFormat("es", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+// What the library already knows, without suspending: shown while the history
+// loads (see DetailSkeleton), never instead of it.
+const cachedLibraryAtom = unwrap(
+  baseLibraryAtom,
+  (previous) => previous ?? null,
+);
+
 export function MangaDetailView() {
   const { id } = useParams<{ id: string }>();
   const [state, setState] = useState<HistoryState>({ kind: "loading" });
+  const cachedLibrary = useAtomValue(cachedLibraryAtom);
   const refreshLibrary = useSetAtom(libraryAtom);
   const refreshBase = useSetAtom(baseLibraryAtom);
   // Bumped after a merge or an unmerge: the whole history changes shape, so it
@@ -80,11 +108,19 @@ export function MangaDetailView() {
   }
 
   if (state.kind === "loading") {
-    return <p className="status">Cargando historial…</p>;
+    const known = cachedLibrary?.ok
+      ? cachedLibrary.data.find((entry) => entry.id === id)
+      : undefined;
+    return <DetailSkeleton entry={known} />;
   }
   if (state.kind === "error") {
     return (
-      <p className="status error">No se pudo cargar el manga: {state.error}</p>
+      <div className="detail">
+        <BackLink />
+        <p className="status error" role="alert">
+          No se pudo cargar el manga: {state.error}
+        </p>
+      </div>
     );
   }
 
@@ -92,95 +128,140 @@ export function MangaDetailView() {
   const lastUrl = events[0]?.sourceUrl ?? null;
 
   return (
-    <section>
-      <Link className="back" to="/">
-        ← Biblioteca
-      </Link>
-      <div className="detail-head">
-        <div className="detail-cover-column">
+    <article className="detail">
+      <AmbientCover
+        className="detail-ambient"
+        mangaId={manga.id}
+        name={manga.canonicalName}
+        coverUrl={manga.coverUrl}
+        coverVersion={manga.coverVersion}
+      />
+      <BackLink />
+      <div className="detail-layout">
+        <aside className="detail-side">
           <CoverImage
             mangaId={manga.id}
             name={manga.canonicalName}
             coverUrl={manga.coverUrl}
             coverVersion={manga.coverVersion}
             className="detail-cover"
-          />
-          <CoverEditor manga={manga} onUpdated={applyManga} />
-        </div>
-        <div className="detail-info">
-          <div className="view-head">
-            <h1>{manga.canonicalName}</h1>
-            <RenameForm
-              mangaId={manga.id}
-              currentName={manga.canonicalName}
-              onRenamed={applyManga}
-            />
-          </div>
-          <StatusPicker manga={manga} onUpdated={applyManga} />
-          <TagsEditor manga={manga} onUpdated={applyManga} />
-          <p className="meta">
-            Slug: <code>{manga.normalizedSlug}</code> · {events.length}{" "}
-            capítulos leídos
-          </p>
-          <MergedSources
-            manga={manga}
-            aliases={aliases}
-            onChanged={reloadEverything}
+            priority
           />
           {lastUrl && (
             <a
-              className="continue"
+              className="button primary block"
               href={lastUrl}
               target="_blank"
               rel="noreferrer"
             >
-              Seguir leyendo ↗
+              <Play aria-hidden="true" />
+              Seguir leyendo
             </a>
           )}
+          <CoverEditor manga={manga} onUpdated={applyManga} />
+        </aside>
+        <div className="detail-main">
+          <header className="detail-header">
+            <div className="detail-title-row">
+              <h1>{manga.canonicalName}</h1>
+              <RenameForm
+                mangaId={manga.id}
+                currentName={manga.canonicalName}
+                onRenamed={applyManga}
+              />
+            </div>
+            <Facts events={events} />
+            <StatusPicker manga={manga} onUpdated={applyManga} />
+            <TagsEditor manga={manga} onUpdated={applyManga} />
+            <MergedSources
+              manga={manga}
+              aliases={aliases}
+              onChanged={reloadEverything}
+            />
+          </header>
+          <ReadingHistory events={events} />
+          <footer className="detail-footer">
+            <DangerZone mangaId={manga.id} name={manga.canonicalName} />
+            {/* What dedup keys on. Useful when a merge goes wrong, noise the
+                rest of the time — so it is one click away, not on the page. */}
+            <details className="technical">
+              <summary>Detalles técnicos</summary>
+              <dl>
+                <dt>Slug</dt>
+                <dd>
+                  <code>{manga.normalizedSlug}</code>
+                </dd>
+                <dt>Id</dt>
+                <dd>
+                  <code>{manga.id}</code>
+                </dd>
+              </dl>
+            </details>
+          </footer>
         </div>
       </div>
-      {events.length === 0 ? (
-        <p className="status">Sin lecturas registradas.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Capítulo</th>
-              <th>Fecha</th>
-              <th>Sitio</th>
-              <th>
-                <span className="visually-hidden">Enlace</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((event) => (
-              <tr key={event.id}>
-                <td>{event.chapterLabel}</td>
-                <td title={formatDate(event.readAt)}>
-                  {relativeDate(event.readAt)}
-                </td>
-                <td>
-                  <span className="chip">{event.sourceDomain}</span>
-                  {/* Same chapter, also read on another site of this card. */}
-                  {event.alsoReadOn.map((domain) => (
-                    <span key={domain} className="chip muted">
-                      {domain}
-                    </span>
-                  ))}
-                </td>
-                <td>
-                  <a href={event.sourceUrl} target="_blank" rel="noreferrer">
-                    Abrir
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    </article>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link className="back" to="/" viewTransition>
+      <ArrowLeft aria-hidden="true" />
+      Biblioteca
+    </Link>
+  );
+}
+
+/**
+ * The few numbers worth seeing before the history: how far, how many, where
+ * and since when. Derived from the history itself, which lists each chapter
+ * once even across merged sites.
+ */
+function Facts({ events }: { events: HistoryEventDto[] }) {
+  const reached = events.reduce<HistoryEventDto | null>(
+    (best, event) =>
+      event.chapterNumber !== null &&
+      (best?.chapterNumber == null || event.chapterNumber > best.chapterNumber)
+        ? event
+        : best,
+    null,
+  );
+  const sites = new Set(
+    events.flatMap((event) => [event.sourceDomain, ...event.alsoReadOn]),
+  );
+  const latest = events[0];
+  const first = events.at(-1);
+
+  return (
+    <dl className="facts">
+      <div>
+        <dt>Alcanzado</dt>
+        <dd>{reached?.chapterLabel ?? "—"}</dd>
+      </div>
+      <div>
+        <dt>Leídos</dt>
+        <dd>{events.length}</dd>
+      </div>
+      <div>
+        <dt>Sitios</dt>
+        <dd>{sites.size}</dd>
+      </div>
+      {latest && (
+        <div>
+          <dt>Última lectura</dt>
+          <dd title={formatDate(latest.readAt)}>
+            {relativeDate(latest.readAt)}
+          </dd>
+        </div>
       )}
-      <DangerZone mangaId={manga.id} name={manga.canonicalName} />
-    </section>
+      {first && (
+        <div>
+          <dt>Desde</dt>
+          <dd>{shortDate.format(new Date(first.readAt))}</dd>
+        </div>
+      )}
+    </dl>
   );
 }
 
@@ -252,21 +333,25 @@ function MergedSources({
   return (
     <div className="merged-sources">
       {aliases.length > 0 && (
-        <ul className="alias-list">
-          {aliases.map((alias) => (
-            <li key={alias.id}>
-              <span className="chip">{alias.canonicalName}</span>
-              <button
-                type="button"
-                className="ghost"
-                disabled={busy}
-                onClick={() => void detach(alias.id)}
-              >
-                Separar
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="aliases">
+          <span className="field-label">También se llama</span>
+          <ul className="alias-list">
+            {aliases.map((alias) => (
+              <li key={alias.id} className="alias">
+                <span>{alias.canonicalName}</span>
+                <button
+                  type="button"
+                  className="ghost small"
+                  disabled={busy}
+                  onClick={() => void detach(alias.id)}
+                >
+                  <Unlink aria-hidden="true" />
+                  Separar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {state.kind === "picking" ? (
@@ -286,6 +371,7 @@ function MergedSources({
           disabled={busy}
           onClick={() => void openPicker()}
         >
+          <Combine aria-hidden="true" />
           Es el mismo que…
         </button>
       )}
@@ -320,25 +406,44 @@ function MergePicker({
 
   return (
     <div className="merge-picker">
-      <input
-        value={query}
-        aria-label="Buscar el manga a unir"
-        placeholder="Buscar en la biblioteca…"
-        onChange={(event) => onQuery(event.target.value)}
-      />
+      <div className="merge-picker-head">
+        <input
+          value={query}
+          aria-label="Buscar el manga a unir"
+          placeholder="Buscar en la biblioteca…"
+          onChange={(event) => onQuery(event.target.value)}
+        />
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Cancelar"
+          title="Cancelar"
+          onClick={onCancel}
+        >
+          <X aria-hidden="true" />
+        </button>
+      </div>
       <ul>
         {matches.map((entry) => (
           <li key={entry.id}>
-            <button type="button" onClick={() => onPick(entry.id)}>
-              {entry.canonicalName}
+            <button
+              type="button"
+              className="option"
+              onClick={() => onPick(entry.id)}
+            >
+              <CoverImage
+                mangaId={entry.id}
+                name={entry.canonicalName}
+                coverUrl={entry.coverUrl}
+                coverVersion={entry.coverVersion}
+                className="option-cover"
+              />
+              <span>{entry.canonicalName}</span>
             </button>
           </li>
         ))}
         {matches.length === 0 && <li className="meta">Sin coincidencias.</li>}
       </ul>
-      <button type="button" className="ghost" onClick={onCancel}>
-        Cancelar
-      </button>
     </div>
   );
 }
@@ -432,13 +537,14 @@ function TagsEditor({
           {tag}
           <button
             type="button"
+            className="chip-remove"
             aria-label={`Quitar ${tag}`}
             disabled={saving}
             onClick={() =>
               void saveTags(manga.tags.filter((existing) => existing !== tag))
             }
           >
-            ×
+            <X aria-hidden="true" />
           </button>
         </span>
       ))}
@@ -449,6 +555,7 @@ function TagsEditor({
         }}
       >
         <input
+          className="tag-input"
           value={draft}
           disabled={saving}
           placeholder="Agregar tag…"
@@ -499,19 +606,21 @@ function CoverEditor({
       <div className="cover-editor">
         <button
           type="button"
-          className="ghost"
+          className="ghost small"
           disabled={state.kind === "saving"}
           onClick={() => setState({ kind: "editing", value: "" })}
         >
+          <ImagePlus aria-hidden="true" />
           Cambiar imagen…
         </button>
         {manga.coverUrl && (
           <button
             type="button"
-            className="ghost"
+            className="ghost small"
             disabled={state.kind === "saving"}
             onClick={() => void save(null)}
           >
+            <ImageOff aria-hidden="true" />
             Quitar imagen
           </button>
         )}
@@ -540,14 +649,18 @@ function CoverEditor({
             setState({ kind: "editing", value: event.target.value })
           }
         />
-        <button type="submit">Guardar</button>
-        <button
-          type="button"
-          className="ghost"
-          onClick={() => setState({ kind: "idle" })}
-        >
-          Cancelar
-        </button>
+        <div className="row">
+          <button type="submit" className="primary small">
+            Guardar
+          </button>
+          <button
+            type="button"
+            className="ghost small"
+            onClick={() => setState({ kind: "idle" })}
+          >
+            Cancelar
+          </button>
+        </div>
       </form>
       {state.kind === "error" && (
         <span className="error" role="alert">
@@ -590,6 +703,7 @@ function DangerZone({ mangaId, name }: { mangaId: string; name: string }) {
           className="ghost danger"
           onClick={() => setZone({ kind: "confirming" })}
         >
+          <Trash aria-hidden="true" />
           Borrar manga…
         </button>
       </div>
@@ -597,27 +711,29 @@ function DangerZone({ mangaId, name }: { mangaId: string; name: string }) {
   }
 
   return (
-    <div className="danger-zone">
+    <div className="danger-zone confirming">
       <p>
         ¿Borrar <strong>{name}</strong> y todo su historial? No se puede
         deshacer.
       </p>
-      <button
-        type="button"
-        className="danger-solid"
-        disabled={zone.kind === "deleting"}
-        onClick={() => void confirmDelete()}
-      >
-        {zone.kind === "deleting" ? "Borrando…" : "Sí, borrar"}
-      </button>
-      <button
-        type="button"
-        className="ghost"
-        disabled={zone.kind === "deleting"}
-        onClick={() => setZone({ kind: "idle" })}
-      >
-        Cancelar
-      </button>
+      <div className="row">
+        <button
+          type="button"
+          className="danger-solid"
+          disabled={zone.kind === "deleting"}
+          onClick={() => void confirmDelete()}
+        >
+          {zone.kind === "deleting" ? "Borrando…" : "Sí, borrar"}
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={zone.kind === "deleting"}
+          onClick={() => setZone({ kind: "idle" })}
+        >
+          Cancelar
+        </button>
+      </div>
       {zone.kind === "error" && (
         <span className="error" role="alert">
           {zone.error}

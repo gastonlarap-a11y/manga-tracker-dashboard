@@ -1,23 +1,31 @@
-import { BrowserRouter, Route, Routes } from "react-router";
+import { createBrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { Layout } from "./components/Layout";
 import { DuplicatesView } from "./views/DuplicatesView";
 import { LibraryView } from "./views/LibraryView";
 import { MangaDetailView } from "./views/MangaDetailView";
 
+/**
+ * A data router, not <BrowserRouter>: `viewTransition` on a link — what morphs
+ * a cover from the grid into its page — and `<ScrollRestoration>` exist only in
+ * this mode. RouterProvider comes from react-router/dom because that is the one
+ * that provides the view-transition context.
+ */
+const router = createBrowserRouter([
+  {
+    element: <Layout />,
+    children: [
+      { index: true, element: <LibraryView /> },
+      { path: "manga/:id", element: <MangaDetailView /> },
+      { path: "duplicates", element: <DuplicatesView /> },
+      {
+        path: "*",
+        element: <p className="status">Página no encontrada.</p>,
+      },
+    ],
+  },
+]);
+
 export function App() {
-  return (
-    <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<LibraryView />} />
-          <Route path="/manga/:id" element={<MangaDetailView />} />
-          <Route path="/duplicates" element={<DuplicatesView />} />
-          <Route
-            path="*"
-            element={<p className="status">Página no encontrada.</p>}
-          />
-        </Routes>
-      </Layout>
-    </BrowserRouter>
-  );
+  return <RouterProvider router={router} />;
 }
