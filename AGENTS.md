@@ -49,7 +49,8 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
 ## Commands
 - Dev: `bun run dev` (vite :5173, proxies `/api`+`/health` → :5150)
 - Build: `bun run build` · Deploy: `bun run deploy` (build + copy to API `public/`)
-- Test: `bun run test` (vitest, not `bun test`) · Single: `bunx vitest run <file>`
+- Test: `bun run test` (vitest, not `bun test`) · Single: `bunx vitest run <file>`. Vitest runs
+  on **Node ≥ 22.12** (Vitest 5 and Jotai 3 require it; CI pins Node 24), not on Bun
 - Lint: `bun run lint` · Format: `bun run format` · Typecheck: `bun run typecheck`
 
 ## Rules
