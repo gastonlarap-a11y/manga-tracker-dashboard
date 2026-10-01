@@ -1,4 +1,5 @@
 import type {
+  DismissalDto,
   DuplicatePairDto,
   ErrorResponse,
   LibraryActivityDto,
@@ -150,6 +151,24 @@ export function dismissDuplicate(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idA, idB }),
+  });
+}
+
+export function getDismissals(): Promise<ApiResult<DismissalDto[]>> {
+  return request("/api/duplicates/dismissals");
+}
+
+// "Volver a sugerir": the pair is a suggestion again, here and on every other
+// machine after the next sync. By slugs, which is what a dismissal holds — a
+// side may not even be on this machine.
+export function undismissDuplicate(
+  slugA: string,
+  slugB: string,
+): Promise<ApiResult<null>> {
+  return request("/api/duplicates/undismiss", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slugA, slugB }),
   });
 }
 

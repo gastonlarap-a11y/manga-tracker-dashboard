@@ -2,6 +2,7 @@ import { useSetAtom } from "jotai";
 import { startTransition, useEffect } from "react";
 import {
   activityAtom,
+  dismissalsAtom,
   duplicatesAtom,
   liveStatusAtom,
   refreshLibraryAtom,
@@ -22,6 +23,7 @@ const DEBOUNCE_MS = 300;
 export function LiveRefresh() {
   const refreshLibrary = useSetAtom(refreshLibraryAtom);
   const refreshDuplicates = useSetAtom(duplicatesAtom);
+  const refreshDismissals = useSetAtom(dismissalsAtom);
   const refreshActivity = useSetAtom(activityAtom);
   const refreshSyncStatus = useSetAtom(syncStatusAtom);
   const setLiveStatus = useSetAtom(liveStatusAtom);
@@ -40,6 +42,8 @@ export function LiveRefresh() {
       startTransition(() => {
         refreshLibrary();
         refreshDuplicates();
+        // A sync can bring a pair another machine dismissed, or took back.
+        refreshDismissals();
         refreshActivity();
         // A sync that pulled something from another machine publishes this
         // same event, so the badge is never staler than the data next to it.
@@ -80,6 +84,7 @@ export function LiveRefresh() {
   }, [
     refreshLibrary,
     refreshDuplicates,
+    refreshDismissals,
     refreshActivity,
     refreshSyncStatus,
     setLiveStatus,

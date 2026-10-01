@@ -1,13 +1,21 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { CircleCheck, TriangleAlert } from "lucide-react";
+import { CircleCheck, TriangleAlert, Undo2 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { Suspense, startTransition, useState } from "react";
 import { Link } from "react-router";
-import { dismissDuplicate, mergeMangas } from "../api/client";
-import type { DuplicatePairDto, MangaDto } from "../api/types";
+import {
+  dismissDuplicate,
+  mergeMangas,
+  undismissDuplicate,
+} from "../api/client";
+import type { DismissalDto, DuplicatePairDto, MangaDto } from "../api/types";
 import { CoverImage } from "../components/CoverImage";
 import { RenameForm } from "../components/RenameForm";
-import { duplicatesAtom, refreshLibraryAtom } from "../state/atoms";
+import {
+  dismissalsAtom,
+  duplicatesAtom,
+  refreshLibraryAtom,
+} from "../state/atoms";
 
 const REASON_LABELS: Record<string, string> = {
   tokens: "palabras casi iguales",
@@ -37,6 +45,10 @@ export function DuplicatesView() {
       >
         <DuplicatesList />
       </Suspense>
+      {/* Its own boundary: the suggestions above never wait for this list. */}
+      <Suspense fallback={null}>
+        <DismissedPairs />
+      </Suspense>
     </section>
   );
 }
@@ -44,6 +56,7 @@ export function DuplicatesView() {
 function DuplicatesList() {
   const result = useAtomValue(duplicatesAtom);
   const refreshDuplicates = useSetAtom(duplicatesAtom);
+  const refreshDismissals = useSetAtom(dismissalsAtom);
   const refreshLibrary = useSetAtom(refreshLibraryAtom);
 
   // A transition keeps the list on screen while it reloads, so resolving one
@@ -51,6 +64,8 @@ function DuplicatesList() {
   function refreshAll(): void {
     startTransition(() => {
       refreshDuplicates();
+      // "No son el mismo" moves the pair down into the dismissed list.
+      refreshDismissals();
       refreshLibrary();
     });
   }
@@ -167,6 +182,141 @@ function PairRow({
         )}
       </div>
     </li>
+  );
+}
+
+/**
+ * The pairs dismissed as "no son el mismo", which used to be hidden for good:
+ * one dismissed by mistake could never be suggested again, and nothing on
+ * screen said it was there. Folded away, since it is rarely what someone came
+ * here for, and absent when there is none.
+ */
+function DismissedPairs() {
+  const result = useAtomValue(dismissalsAtom);
+  const refreshDismissals = useSetAtom(dismissalsAtom);
+  const refreshDuplicates = useSetAtom(duplicatesAtom);
+
+  function refreshBoth(): void {
+    startTransition(() => {
+      refreshDismissals();
+      refreshDuplicates();
+    });
+  }
+
+  if (!result.ok) {
+    return (
+      <p className="status error" role="alert">
+        No se pudieron cargar los pares descartados: {result.error}
+      </p>
+    );
+  }
+  if (result.data.length === 0) {
+    return null;
+  }
+
+  return (
+    <details className="dismissed">
+      <summary>
+        Descartados <span className="count">{result.data.length}</span>
+      </summary>
+      <p className="dismissed-lede">
+        Pares que marcaste como «No son el mismo». Volver a sugerir uno lo
+        devuelve a la lista de arriba, en esta computadora y en las que
+        sincronizan con ella.
+      </p>
+      <ul className="dismissed-list" aria-label="Pares descartados">
+        {result.data.map((dismissal) => (
+          <DismissedRow
+            key={`${dismissal.slugA}|${dismissal.slugB}`}
+            dismissal={dismissal}
+            onRestored={refreshBoth}
+          />
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function DismissedRow({
+  dismissal,
+  onRestored,
+}: {
+  dismissal: DismissalDto;
+  onRestored: () => void;
+}) {
+  const [state, setState] = useState<PairState>({ kind: "idle" });
+
+  async function restore(): Promise<void> {
+    setState({ kind: "working" });
+    const result = await undismissDuplicate(dismissal.slugA, dismissal.slugB);
+    if (result.ok) {
+      // The row leaves with the refresh.
+      onRestored();
+    } else {
+      setState({ kind: "error", error: result.error });
+    }
+  }
+
+  return (
+    <li className="dismissed-row">
+      <DismissedSide manga={dismissal.a} slug={dismissal.slugA} />
+      <span className="dismissed-and" aria-hidden="true">
+        ≠
+      </span>
+      <DismissedSide manga={dismissal.b} slug={dismissal.slugB} />
+      <div className="dismissed-actions">
+        <button
+          type="button"
+          className="ghost small"
+          disabled={state.kind === "working"}
+          onClick={() => void restore()}
+        >
+          <Undo2 aria-hidden="true" />
+          Volver a sugerir
+        </button>
+        {state.kind === "error" && (
+          <span className="error" role="alert">
+            {state.error}
+          </span>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * A side of a dismissed pair: the manga when this machine has it, its slug
+ * when it was dismissed on another machine and has not synced here yet.
+ */
+function DismissedSide({
+  manga,
+  slug,
+}: {
+  manga: MangaDto | null;
+  slug: string;
+}) {
+  if (manga === null) {
+    return (
+      <span
+        className="dismissed-side missing"
+        title="Todavía no está en esta computadora"
+      >
+        <code>{slug}</code>
+      </span>
+    );
+  }
+  return (
+    <Link to={`/manga/${manga.id}`} className="dismissed-side">
+      <span className="dismissed-cover" aria-hidden="true">
+        <CoverImage
+          mangaId={manga.id}
+          name={manga.canonicalName}
+          coverUrl={manga.coverUrl}
+          coverVersion={manga.coverVersion}
+        />
+      </span>
+      <span className="dismissed-name">{manga.canonicalName}</span>
+    </Link>
   );
 }
 
