@@ -1,6 +1,6 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DuplicatePairDto } from "../api/types";
+import type { DismissalDto, DuplicatePairDto } from "../api/types";
 import {
   actAsync,
   jsonResponse,
@@ -29,14 +29,56 @@ const pair: DuplicatePairDto = {
   sequelSuspicion: false,
 };
 
+const dismissal: DismissalDto = {
+  slugA: "berserk",
+  slugB: "berserk-of-gluttony",
+  dismissedAt: "2026-09-01T10:00:00.000Z",
+  a: mangaDto({
+    id: "m3",
+    canonicalName: "Berserk",
+    normalizedSlug: "berserk",
+  }),
+  // Dismissed on another machine, before this one synced the title.
+  b: null,
+};
+
+/** Each endpoint the view reads answered with its own shape. */
+function serve({
+  pairs = [pair],
+  dismissals = [],
+}: {
+  pairs?: DuplicatePairDto[];
+  dismissals?: DismissalDto[];
+} = {}) {
+  fetchMock.mockImplementation((path: string, init?: RequestInit) => {
+    if (init?.method === "POST") {
+      return Promise.resolve(
+        path === "/api/duplicates/merge"
+          ? jsonResponse({ canonical: pair.b, alias: pair.a })
+          : new Response(null, { status: 204 }),
+      );
+    }
+    if (path === "/api/duplicates/dismissals") {
+      return Promise.resolve(jsonResponse(dismissals));
+    }
+    return Promise.resolve(jsonResponse(pairs));
+  });
+}
+
+function postTo(path: string): unknown[] | undefined {
+  return fetchMock.mock.calls.find(
+    ([called, init]) =>
+      called === path && (init as RequestInit | undefined)?.method === "POST",
+  );
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
+  serve();
 });
 
 describe("DuplicatesView", () => {
   it("renders suspected pairs with their similarity and why they matched", async () => {
-    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([pair])));
-
     await renderWithProviders(<DuplicatesView />);
 
     expect(await screen.findByText("Solo Leveling")).toBeDefined();
@@ -46,7 +88,7 @@ describe("DuplicatesView", () => {
   });
 
   it("shows the empty state when nothing looks duplicated", async () => {
-    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse([])));
+    serve({ pairs: [] });
 
     await renderWithProviders(<DuplicatesView />);
 
@@ -54,53 +96,32 @@ describe("DuplicatesView", () => {
   });
 
   it("merges the pair into the side the user picked", async () => {
-    fetchMock.mockImplementation((_path: string, init?: RequestInit) =>
-      Promise.resolve(
-        init?.method === "POST"
-          ? jsonResponse({ canonical: pair.b, alias: pair.a })
-          : jsonResponse([pair]),
-      ),
-    );
-
     await renderWithProviders(<DuplicatesView />);
     const button = await screen.findByText("Unir en «Solo Levelling»");
     await actAsync(() => button.click());
 
-    const call = fetchMock.mock.calls.find(
-      ([, init]) => (init as RequestInit | undefined)?.method === "POST",
-    );
-    expect(call?.[0]).toBe("/api/duplicates/merge");
     // The clicked side is the one that survives.
-    expect(requestBody(call)).toEqual({ canonicalId: "m2", aliasId: "m1" });
+    expect(requestBody(postTo("/api/duplicates/merge"))).toEqual({
+      canonicalId: "m2",
+      aliasId: "m1",
+    });
   });
 
   it("dismisses a pair the user says is not a duplicate", async () => {
-    fetchMock.mockImplementation((_path: string, init?: RequestInit) =>
-      Promise.resolve(
-        init?.method === "POST"
-          ? new Response(null, { status: 204 })
-          : jsonResponse([pair]),
-      ),
-    );
-
     await renderWithProviders(<DuplicatesView />);
     const button = await screen.findByText("No son el mismo");
     await actAsync(() => button.click());
 
-    const call = fetchMock.mock.calls.find(
-      ([, init]) => (init as RequestInit | undefined)?.method === "POST",
-    );
-    expect(call?.[0]).toBe("/api/duplicates/dismiss");
+    expect(requestBody(postTo("/api/duplicates/dismiss"))).toEqual({
+      idA: "m1",
+      idB: "m2",
+    });
   });
 
   it("warns when the pair looks like a sequel", async () => {
-    fetchMock.mockImplementation(() =>
-      Promise.resolve(
-        jsonResponse([
-          { ...pair, sequelSuspicion: true, reasons: ["containment"] },
-        ]),
-      ),
-    );
+    serve({
+      pairs: [{ ...pair, sequelSuspicion: true, reasons: ["containment"] }],
+    });
 
     await renderWithProviders(<DuplicatesView />);
 
@@ -109,5 +130,40 @@ describe("DuplicatesView", () => {
         "Puede ser una temporada o spin-off, no la misma obra.",
       ),
     ).toBeDefined();
+  });
+});
+
+describe("DuplicatesView: dismissed pairs", () => {
+  it("lists them, folded away, a missing side by its slug", async () => {
+    serve({ pairs: [], dismissals: [dismissal] });
+
+    await renderWithProviders(<DuplicatesView />);
+
+    expect(await screen.findByText("Descartados")).toBeDefined();
+    const list = within(
+      screen.getByRole("list", { name: "Pares descartados", hidden: true }),
+    );
+    expect(list.getByText("Berserk")).toBeDefined();
+    expect(list.getByText("berserk-of-gluttony")).toBeDefined();
+  });
+
+  it("takes a dismissal back by its pair of slugs", async () => {
+    serve({ dismissals: [dismissal] });
+    await renderWithProviders(<DuplicatesView />);
+    const button = await screen.findByText("Volver a sugerir");
+
+    await actAsync(() => button.click());
+
+    expect(requestBody(postTo("/api/duplicates/undismiss"))).toEqual({
+      slugA: "berserk",
+      slugB: "berserk-of-gluttony",
+    });
+  });
+
+  it("says nothing when no pair was ever dismissed", async () => {
+    await renderWithProviders(<DuplicatesView />);
+    await screen.findByText("Solo Leveling");
+
+    expect(screen.queryByText("Descartados")).toBeNull();
   });
 });

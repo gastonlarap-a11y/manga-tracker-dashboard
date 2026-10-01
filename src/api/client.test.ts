@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { jsonResponse } from "../test-utils";
+import { jsonResponse, requestBody } from "../test-utils";
 import {
   deleteManga,
+  getDismissals,
   getDuplicates,
   getLibraryPage,
   getLibrarySummary,
   getMangaHistory,
+  undismissDuplicate,
   updateManga,
 } from "./client";
 
@@ -70,6 +72,30 @@ describe("getLibrarySummary", () => {
     await getLibrarySummary();
 
     expect(fetchMock).toHaveBeenCalledWith("/api/library/summary", undefined);
+  });
+});
+
+describe("dismissals", () => {
+  it("lists the dismissed pairs", async () => {
+    fetchMock.mockResolvedValue(jsonResponse([]));
+
+    await getDismissals();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/duplicates/dismissals",
+      undefined,
+    );
+  });
+
+  it("takes one back by its pair of slugs", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    const result = await undismissDuplicate("berserk", "one-piece");
+
+    const call = fetchMock.mock.calls[0];
+    expect(call?.[0]).toBe("/api/duplicates/undismiss");
+    expect(requestBody(call)).toEqual({ slugA: "berserk", slugB: "one-piece" });
+    expect(result).toEqual({ ok: true, data: null });
   });
 });
 

@@ -132,6 +132,18 @@ export interface DuplicatePairDto {
   sequelSuspicion: boolean;
 }
 
+// GET /api/duplicates/dismissals: pairs dismissed as "no son el mismo", most
+// recent first. A side is null when that title is not on this machine (it was
+// dismissed on another one and has not synced here yet); the slug stands in.
+export interface DismissalDto {
+  // Both slugs, in the order the API stores them (lexicographic).
+  slugA: string;
+  slugB: string;
+  dismissedAt: string;
+  a: MangaDto | null;
+  b: MangaDto | null;
+}
+
 export interface MergeResultDto {
   canonical: MangaDto;
   // Null when the two ids already belonged to the same card.

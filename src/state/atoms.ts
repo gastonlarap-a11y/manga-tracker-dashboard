@@ -2,6 +2,7 @@ import { atom } from "jotai";
 import { atomWithRefresh } from "jotai/utils";
 import {
   getActivity,
+  getDismissals,
   getDuplicates,
   getLibraryPage,
   getLibrarySummary,
@@ -95,6 +96,9 @@ export const activityAtom = atomWithRefresh(async () =>
 );
 
 export const duplicatesAtom = atomWithRefresh(async () => getDuplicates());
+
+/** The pairs dismissed as "no son el mismo", which can be taken back. */
+export const dismissalsAtom = atomWithRefresh(async () => getDismissals());
 
 // Off-site sync state, shown by SyncBadge. Refreshed by LiveRefresh on the same
 // SSE signal as the data, because a sync that pulls something from another
