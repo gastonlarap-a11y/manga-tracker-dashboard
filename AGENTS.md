@@ -63,6 +63,12 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   `renderWithProviders` and wrap suspense-triggering interactions in `actAsync`
   (React 19 requires awaited `act` for suspended trees). The hero and the recents repeat
   titles the grid also shows, so grid assertions go `within` the list named "Mangas".
+- **A refresh while the page is on screen goes inside `startTransition`** (`LiveRefresh`,
+  `SyncBadge`, `DuplicatesView`). Outside one, refreshing an async atom suspends the view
+  back to its Suspense fallback: the whole grid unmounted, every cover reloaded and every
+  card replayed its entrance, once per chapter read in another tab. Inside one, React keeps
+  what is on screen until the new data is there (Jotai notifies from the setter, so the
+  re-render belongs to the transition). Only a first load shows a skeleton.
 - **Glass is the navigation layer, never the content** (Apple's own rule for Liquid Glass):
   the bar, the floating toolbar, pills over covers. Tiles, cards and the history are solid
   surfaces, and glass never stacks on glass.

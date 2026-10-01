@@ -1,6 +1,6 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { unwrap } from "jotai/utils";
-import { useId, useState } from "react";
+import { startTransition, useId, useState } from "react";
 import { syncNow } from "../api/client";
 import type { SyncStatusDto } from "../api/types";
 import { relativeDate } from "../lib/dates";
@@ -85,10 +85,13 @@ export function SyncBadge() {
     setClickError(outcome.ok ? null : outcome.error);
     // Refreshed explicitly rather than left to the SSE stream: a sync that
     // pulled nothing publishes no library change, so LiveRefresh never fires,
-    // yet lastSyncAt moved and the badge would keep showing the old time.
-    refreshStatus();
-    refreshLibrary();
-    refreshBase();
+    // yet lastSyncAt moved and the badge would keep showing the old time. In a
+    // transition, like LiveRefresh, so the library stays on screen meanwhile.
+    startTransition(() => {
+      refreshStatus();
+      refreshLibrary();
+      refreshBase();
+    });
     setRunning(false);
   }
 

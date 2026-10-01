@@ -62,6 +62,14 @@
   overflow: hidden;
   padding: clamp(16px, 1.8vw, 26px);
   container-type: inline-size;
+  animation: continue-in var(--dur-slow) var(--ease-out) both;
+}
+
+/* A different manga read last fades in (ContinueReading is keyed by it). */
+@keyframes continue-in {
+  from {
+    opacity: 0.35;
+  }
 }
 
 .continue-body {

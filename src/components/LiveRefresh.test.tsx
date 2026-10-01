@@ -1,5 +1,6 @@
 import { act, screen } from "@testing-library/react";
 import { useAtomValue } from "jotai";
+import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { libraryAtom } from "../state/atoms";
 import { jsonResponse, libraryEntry, renderWithProviders } from "../test-utils";
@@ -88,6 +89,53 @@ describe("LiveRefresh", () => {
     });
 
     expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it("keeps the page on screen while a refresh loads, not the fallback", async () => {
+    // The regression: each chapter read elsewhere suspended the library back
+    // to its skeleton, unmounting the grid and reloading every cover.
+    let release: () => void = () => {};
+    let libraryCalls = 0;
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      if (!String(input).startsWith("/api/library")) {
+        return Promise.resolve(jsonResponse([]));
+      }
+      libraryCalls += 1;
+      if (libraryCalls === 1) {
+        return Promise.resolve(
+          jsonResponse([libraryEntry({ canonicalName: "Antes" })]),
+        );
+      }
+      return new Promise<Response>((resolve) => {
+        release = () =>
+          resolve(jsonResponse([libraryEntry({ canonicalName: "Después" })]));
+      });
+    });
+
+    await renderWithProviders(
+      <>
+        <LiveRefresh />
+        <Suspense fallback={<p>cargando</p>}>
+          <LibraryProbe />
+        </Suspense>
+      </>,
+    );
+    await screen.findByText("Antes");
+
+    await act(async () => {
+      FakeEventSource.instances[0]?.emit("library-changed");
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    expect(screen.queryByText("cargando")).toBeNull();
+    expect(screen.getByText("Antes")).toBeDefined();
+
+    await act(async () => {
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(await screen.findByText("Después")).toBeDefined();
   });
 
   it("refreshes immediately when the stream (re)opens", async () => {

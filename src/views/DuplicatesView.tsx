@@ -1,7 +1,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import type { CSSProperties } from "react";
-import { Suspense, useState } from "react";
+import { Suspense, startTransition, useState } from "react";
 import { Link } from "react-router";
 import { dismissDuplicate, mergeMangas } from "../api/client";
 import type { DuplicatePairDto, MangaDto } from "../api/types";
@@ -47,10 +47,14 @@ function DuplicatesList() {
   const refreshLibrary = useSetAtom(libraryAtom);
   const refreshBase = useSetAtom(baseLibraryAtom);
 
+  // A transition keeps the list on screen while it reloads, so resolving one
+  // pair does not drop every other pair back to the skeleton.
   function refreshAll(): void {
-    refreshDuplicates();
-    refreshLibrary();
-    refreshBase();
+    startTransition(() => {
+      refreshDuplicates();
+      refreshLibrary();
+      refreshBase();
+    });
   }
 
   if (!result.ok) {
