@@ -3,86 +3,90 @@ import { atomWithRefresh } from "jotai/utils";
 import {
   getActivity,
   getDuplicates,
-  getLibrary,
+  getLibraryPage,
+  getLibrarySummary,
   getSyncStatus,
 } from "../api/client";
-import type { MangaStatus } from "../api/types";
+import type { LibrarySort, MangaStatus } from "../api/types";
 
-// Library filters, shared between the toolbar and the grid.
+export type { LibrarySort };
+
+// What the grid asks the server for. All of it is applied by the server: the
+// browser never holds the whole library, so it cannot filter it either.
 // domain "" = every domain; sinceDays null = all time.
 export const domainFilterAtom = atom("");
 export const sinceDaysAtom = atom<number | null>(null);
-
-// Client-side refinements (the dataset is small, so these never refetch).
 export type StatusTab = MangaStatus | "all";
 export const statusTabAtom = atom<StatusTab>("reading");
+/** The search the grid shows — what was typed, once the typing paused. */
 export const searchAtom = atom("");
+/**
+ * How long typing has to pause before a search reaches the server. Each
+ * keystroke would otherwise be a request whose answer is stale on arrival.
+ */
+export const SEARCH_PAUSE_MS = 250;
 export const tagFilterAtom = atom<string[]>([]);
-
-// "recent" is the order the API already sends (most recently read first), so
-// it costs no sorting at all.
-export type LibrarySort = "recent" | "title" | "chapters";
 export const sortAtom = atom<LibrarySort>("recent");
+
+/** Everything that decides which cards the grid shows, and in what order. */
+export interface GridQuery {
+  readonly sort: LibrarySort;
+  readonly status?: MangaStatus;
+  readonly q?: string;
+  readonly domain?: string;
+  readonly sinceDays?: number;
+  readonly tags: readonly string[];
+}
+
+export const gridQueryAtom = atom((get): GridQuery => {
+  const status = get(statusTabAtom);
+  const q = get(searchAtom).trim();
+  const domain = get(domainFilterAtom);
+  const sinceDays = get(sinceDaysAtom);
+  return {
+    sort: get(sortAtom),
+    ...(status === "all" ? {} : { status }),
+    ...(q === "" ? {} : { q }),
+    ...(domain === "" ? {} : { domain }),
+    ...(sinceDays === null ? {} : { sinceDays }),
+    tags: get(tagFilterAtom),
+  };
+});
 
 // SSE connection state, owned by LiveRefresh and shown by ConnectionBadge.
 export type LiveStatus = "connecting" | "live" | "offline";
 export const liveStatusAtom = atom<LiveStatus>("connecting");
 
-const DAY_MS = 86_400_000;
+/**
+ * Moved by anything that may have changed what the library shows — a reading
+ * arriving, an edit, a merge, a sync. The grid re-reads the pages it holds
+ * when it moves (see libraryPages.ts).
+ */
+export const libraryRevisionAtom = atom(0);
 
 // atomWithRefresh: writing to the atom re-runs the fetch (used by LiveRefresh
 // and after mutations).
-export const libraryAtom = atomWithRefresh(async (get) => {
-  const domain = get(domainFilterAtom);
-  const sinceDays = get(sinceDaysAtom);
-  return getLibrary({
-    domain: domain === "" ? undefined : domain,
-    since:
-      sinceDays === null
-        ? undefined
-        : new Date(Date.now() - sinceDays * DAY_MS).toISOString(),
-  });
-});
 
-// Unfiltered snapshot: feeds the stats row and the domain/tag options, so the
-// selects keep every option while a filter is active.
-export const baseLibraryAtom = atomWithRefresh(async () => getLibrary());
+/** The totals, the counts per tab and the filter options, without the cards. */
+export const librarySummaryAtom = atomWithRefresh(async () =>
+  getLibrarySummary(),
+);
 
-export const knownDomainsAtom = atom(async (get) => {
-  const result = await get(baseLibraryAtom);
-  if (!result.ok) {
-    return [];
-  }
-  const domains = result.data.flatMap((entry) => entry.sourceDomains);
-  return [...new Set(domains)].sort();
-});
+/** The hero and the recents beside it: the next card is the hero's runner-up. */
+export const CONTINUE_READING = 9;
+export const continueReadingAtom = atomWithRefresh(async () =>
+  getLibraryPage({
+    sort: "recent",
+    status: "reading",
+    limit: CONTINUE_READING,
+  }),
+);
 
-export const knownTagsAtom = atom(async (get) => {
-  const result = await get(baseLibraryAtom);
-  if (!result.ok) {
-    return [];
-  }
-  const tags = result.data.flatMap((entry) => entry.tags);
-  return [...new Set(tags)].sort();
-});
-
-// How many cards each status tab holds, from the unfiltered snapshot: the
-// counts say what is in the library, not what the current filters let through.
-export const statusCountsAtom = atom(async (get) => {
-  const result = await get(baseLibraryAtom);
-  const counts: Record<StatusTab, number> = {
-    reading: 0,
-    completed: 0,
-    dropped: 0,
-    all: 0,
-  };
-  if (result.ok) {
-    for (const entry of result.data) {
-      counts[entry.status] += 1;
-      counts.all += 1;
-    }
-  }
-  return counts;
+/** Everything the library shows, read again: after a mutation or a live change. */
+export const refreshLibraryAtom = atom(null, (_get, set) => {
+  set(libraryRevisionAtom, (revision) => revision + 1);
+  set(librarySummaryAtom);
+  set(continueReadingAtom);
 });
 
 // Chapters per day for the activity panel, in this browser's zone.

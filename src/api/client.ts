@@ -2,7 +2,9 @@ import type {
   DuplicatePairDto,
   ErrorResponse,
   LibraryActivityDto,
-  LibraryEntryDto,
+  LibraryPageDto,
+  LibraryPageQuery,
+  LibrarySummaryDto,
   MangaDto,
   MangaHistoryDto,
   MergeResultDto,
@@ -47,23 +49,36 @@ async function request<T>(
   }
 }
 
-export interface LibraryFilters {
-  domain?: string;
-  since?: string;
+/**
+ * One page of the library. The dashboard never asks for the whole list: at ten
+ * thousand cards that is megabytes of JSON for a screen that shows thirty.
+ * Empty values are left out rather than sent as `q=`, so a filter that is off
+ * is not a filter the server applies.
+ */
+export function getLibraryPage(
+  query: LibraryPageQuery = {},
+): Promise<ApiResult<LibraryPageDto>> {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries({
+    sort: query.sort,
+    limit: query.limit === undefined ? undefined : String(query.limit),
+    cursor: query.cursor,
+    status: query.status,
+    q: query.q?.trim(),
+    domain: query.domain,
+    since: query.since,
+    tags: query.tags?.length ? query.tags.join(",") : undefined,
+  })) {
+    if (value) {
+      params.set(name, value);
+    }
+  }
+  const search = params.size > 0 ? `?${params.toString()}` : "";
+  return request(`/api/library/page${search}`);
 }
 
-export function getLibrary(
-  filters: LibraryFilters = {},
-): Promise<ApiResult<LibraryEntryDto[]>> {
-  const params = new URLSearchParams();
-  if (filters.domain) {
-    params.set("domain", filters.domain);
-  }
-  if (filters.since) {
-    params.set("since", filters.since);
-  }
-  const query = params.size > 0 ? `?${params.toString()}` : "";
-  return request(`/api/library${query}`);
+export function getLibrarySummary(): Promise<ApiResult<LibrarySummaryDto>> {
+  return request("/api/library/summary");
 }
 
 // The zone is this browser's: the backend counts days as the reader lived

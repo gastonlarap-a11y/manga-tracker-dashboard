@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
+import { useState } from "react";
 import { createMemoryRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { describe, expect, it, vi } from "vitest";
@@ -27,8 +28,11 @@ vi.stubGlobal("EventSource", SilentEventSource);
 async function renderShell() {
   const router = createMemoryRouter([
     {
-      element: <Layout />,
-      children: [{ index: true, element: <p>inicio</p> }],
+      element: <Layout library={<Counter />} />,
+      children: [
+        { index: true, element: null },
+        { path: "duplicates", element: <p>duplicados</p> },
+      ],
     },
   ]);
   await act(async () => {
@@ -38,13 +42,44 @@ async function renderShell() {
       </Provider>,
     );
   });
+  return router;
+}
+
+/** A stand-in library with state of its own, to see whether it survives. */
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <button type="button" onClick={() => setCount(count + 1)}>
+      inicio {count}
+    </button>
+  );
 }
 
 describe("Layout", () => {
+  it("keeps the library alive behind another page, as it was left", async () => {
+    const router = await renderShell();
+    fireEvent.click(screen.getByRole("button", { name: "inicio 0" }));
+
+    await act(async () => {
+      await router.navigate("/duplicates");
+    });
+    expect(screen.getByText("duplicados")).toBeDefined();
+    // Still in the page with its state, hidden from everyone: out of the
+    // accessibility tree (no role query finds it), nothing rebuilt later.
+    expect(screen.queryByRole("button", { name: /inicio/ })).toBeNull();
+    expect(screen.getByText("inicio 1")).toBeDefined();
+
+    await act(async () => {
+      await router.navigate("/");
+    });
+    expect(screen.getByRole("button", { name: "inicio 1" })).toBeDefined();
+    expect(screen.queryByText("duplicados")).toBeNull();
+  });
+
   it("has no settings button in a browser tab, where there is no app", async () => {
     await renderShell();
 
-    expect(screen.getByText("inicio")).toBeDefined();
+    expect(screen.getByText("inicio 0")).toBeDefined();
     expect(screen.queryByRole("button", { name: "Configuración" })).toBeNull();
     expect(document.documentElement.dataset.embed).toBeUndefined();
   });

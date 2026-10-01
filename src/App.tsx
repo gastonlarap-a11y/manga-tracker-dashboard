@@ -13,9 +13,11 @@ import { MangaDetailView } from "./views/MangaDetailView";
  */
 const router = createBrowserRouter([
   {
-    element: <Layout />,
+    element: <Layout library={<LibraryView />} />,
     children: [
-      { index: true, element: <LibraryView /> },
+      // The library is rendered by Layout itself, which keeps it alive while
+      // another page is shown; the route only has to exist.
+      { index: true, element: null },
       { path: "manga/:id", element: <MangaDetailView /> },
       { path: "duplicates", element: <DuplicatesView /> },
       {

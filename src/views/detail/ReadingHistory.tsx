@@ -1,6 +1,10 @@
 import { ArrowUpRight, History as HistoryIcon } from "lucide-react";
+import { useState } from "react";
 import type { HistoryEventDto } from "../../api/types";
 import { formatDate, formatTime, groupByDay } from "../../lib/dates";
+
+/** Readings shown at first, and added by each "Mostrar más". */
+export const HISTORY_STEP = 150;
 
 function chapters(count: number): string {
   return count === 1 ? "1 capítulo" : `${count} capítulos`;
@@ -10,9 +14,15 @@ function chapters(count: number): string {
  * Every chapter read, grouped by the day it was read on — "Hoy", "Ayer", the
  * weekday, then the date. A table of a hundred and forty identical rows said
  * the same thing and was much harder to scan.
+ *
+ * The most recent ones first and the rest on request: a series read for years
+ * has thousands of chapters, and the page used to build every row of them
+ * before showing the first.
  */
 export function ReadingHistory({ events }: { events: HistoryEventDto[] }) {
-  const groups = groupByDay(events);
+  const [shown, setShown] = useState(HISTORY_STEP);
+  const groups = groupByDay(events.slice(0, shown));
+  const remaining = events.length - shown;
 
   return (
     <section className="tile history" aria-labelledby="history-title">
@@ -68,6 +78,16 @@ export function ReadingHistory({ events }: { events: HistoryEventDto[] }) {
             </li>
           ))}
         </ol>
+      )}
+      {remaining > 0 && (
+        <button
+          type="button"
+          className="ghost history-more"
+          onClick={() => setShown((count) => count + HISTORY_STEP)}
+        >
+          Mostrar {Math.min(remaining, HISTORY_STEP)} más · quedan{" "}
+          {chapters(remaining)}
+        </button>
       )}
     </section>
   );

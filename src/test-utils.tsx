@@ -2,7 +2,12 @@ import { act, render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
-import type { LibraryEntryDto, MangaDto } from "./api/types";
+import type {
+  LibraryActivityDto,
+  LibraryEntryDto,
+  LibrarySummaryDto,
+  MangaDto,
+} from "./api/types";
 
 // React 19 requires awaiting `act` when a component suspends during render
 // (async jotai atoms do); a plain sync render() leaves the retry queued and
@@ -53,6 +58,108 @@ export function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+// The API's search key: lowercase, accents stripped.
+function searchKey(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim();
+}
+
+const WEEK_MS = 7 * 86_400_000;
+
+function compare(a: string | number, b: string | number): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * The library endpoints answered the way the API answers them — filtered,
+ * searched, ordered and paged — over cards held in memory. The dashboard does
+ * none of that itself any more, so a test serving the whole list for every
+ * question would test nothing. Returns undefined for any other URL, for the
+ * test to answer.
+ */
+export function fakeLibraryApi(
+  entries: readonly LibraryEntryDto[],
+  activity: LibraryActivityDto = { timeZone: "UTC", days: [] },
+  now: number = Date.now(),
+): (input: RequestInfo | URL) => Promise<Response> | undefined {
+  return (input) => {
+    const url = new URL(String(input), "http://dashboard.test");
+    if (url.pathname === "/api/library/activity") {
+      return Promise.resolve(jsonResponse(activity));
+    }
+    if (url.pathname === "/api/library/summary") {
+      const summary: LibrarySummaryDto = {
+        counts: {
+          reading: entries.filter((entry) => entry.status === "reading").length,
+          completed: entries.filter((entry) => entry.status === "completed")
+            .length,
+          dropped: entries.filter((entry) => entry.status === "dropped").length,
+          all: entries.length,
+        },
+        chapters: entries.reduce((sum, entry) => sum + entry.readCount, 0),
+        sites: new Set(entries.flatMap((entry) => entry.sourceDomains)).size,
+        activeThisWeek: entries.filter(
+          (entry) =>
+            entry.lastActivity !== null &&
+            Date.parse(entry.lastActivity.readAt) >= now - WEEK_MS,
+        ).length,
+        domains: [
+          ...new Set(entries.flatMap((entry) => entry.sourceDomains)),
+        ].toSorted(),
+        tags: [...new Set(entries.flatMap((entry) => entry.tags))].toSorted(),
+      };
+      return Promise.resolve(jsonResponse(summary));
+    }
+    if (url.pathname !== "/api/library/page") {
+      return undefined;
+    }
+    const params = url.searchParams;
+    const status = params.get("status");
+    const q = searchKey(params.get("q") ?? "");
+    const domain = params.get("domain");
+    const since = params.get("since");
+    const tags = params.get("tags")?.split(",") ?? [];
+    const lastRead = (entry: LibraryEntryDto) =>
+      entry.lastActivity === null ? 0 : Date.parse(entry.lastActivity.readAt);
+    const matching = entries
+      .filter(
+        (entry) =>
+          (status === null || entry.status === status) &&
+          searchKey(entry.canonicalName).includes(q) &&
+          (domain === null || entry.sourceDomains.includes(domain)) &&
+          (since === null || lastRead(entry) >= Date.parse(since)) &&
+          tags.every((tag) => entry.tags.includes(tag)),
+      )
+      .toSorted((a, b) => {
+        switch (params.get("sort") ?? "recent") {
+          case "title":
+            return (
+              compare(searchKey(a.canonicalName), searchKey(b.canonicalName)) ||
+              compare(a.id, b.id)
+            );
+          case "chapters":
+            return compare(b.readCount, a.readCount) || compare(a.id, b.id);
+          default:
+            return compare(lastRead(b), lastRead(a)) || compare(a.id, b.id);
+        }
+      });
+    // The cursor is opaque to the dashboard; here it is just the offset.
+    const offset = Number(params.get("cursor") ?? 0);
+    const limit = Number(params.get("limit") ?? 60);
+    const items = matching.slice(offset, offset + limit);
+    const next = offset + limit;
+    return Promise.resolve(
+      jsonResponse({
+        items,
+        nextCursor: next < matching.length ? String(next) : null,
+      }),
+    );
+  };
 }
 
 export function mangaDto(overrides: Partial<MangaDto> = {}): MangaDto {

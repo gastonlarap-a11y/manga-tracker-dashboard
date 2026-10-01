@@ -515,6 +515,10 @@
 
 /* ---- grid ---- */
 
+/* Only the rows near the window are in the page (LibraryGrid); the inline
+   padding above and below stands in for the rest. The script reads the column
+   count and a card's height from here, so this is the one place the grid's
+   shape is decided. */
 .grid {
   display: grid;
   grid-template-columns: repeat(
@@ -527,13 +531,14 @@
   list-style: none;
 }
 
+/* Every card the same height — the cover's ratio, a title box of two lines
+   and one line of meta — so one card's height is every row's. No
+   content-visibility: the rows not in view are not in the page at all, and an
+   off-screen card would report its placeholder size instead of its own. */
 .card {
   display: grid;
   align-content: start;
   gap: 10px;
-  /* Off-screen cards skip layout and paint until they get close. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 340px;
   animation: card-in var(--dur-slow) var(--ease-out) both;
 }
 
@@ -565,6 +570,11 @@
   transition:
     transform var(--dur) var(--ease-out),
     box-shadow var(--dur) var(--ease-out);
+}
+
+/* Before the hover rules below, which are more specific. */
+.library-skeleton .card-media {
+  box-shadow: none;
 }
 
 /* A hairline, and a shade at the foot so the chapter pill reads on any cover. */
@@ -667,6 +677,8 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  /* Two lines whether the title needs them or not: see .card. */
+  min-height: calc(2em * 1.3);
   color: var(--text);
   font-size: 0.9rem;
   font-weight: 620;
@@ -679,16 +691,16 @@
 }
 
 .card-meta {
+  overflow: hidden;
   color: var(--text-3);
   font-size: 0.78rem;
+  /* One line, cut short on a narrow card rather than wrapped: see .card. */
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .library-skeleton .card {
   animation: none;
-}
-
-.library-skeleton .card-media {
-  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

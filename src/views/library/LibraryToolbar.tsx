@@ -1,16 +1,16 @@
 import { useAtom, useAtomValue } from "jotai";
 import { unwrap } from "jotai/utils";
 import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   domainFilterAtom,
-  knownDomainsAtom,
-  knownTagsAtom,
   type LibrarySort,
+  librarySummaryAtom,
+  SEARCH_PAUSE_MS,
   type StatusTab,
   searchAtom,
   sinceDaysAtom,
   sortAtom,
-  statusCountsAtom,
   statusTabAtom,
   tagFilterAtom,
 } from "../../state/atoms";
@@ -35,13 +35,9 @@ const SORTS: { value: LibrarySort; label: string }[] = [
   { value: "chapters", label: "Más capítulos" },
 ];
 
-// unwrap() keeps the toolbar from suspending: empty options while loading.
-const domainOptionsAtom = unwrap(
-  knownDomainsAtom,
-  (previous) => previous ?? [],
-);
-const tagOptionsAtom = unwrap(knownTagsAtom, (previous) => previous ?? []);
-const countsAtom = unwrap(statusCountsAtom, (previous) => previous ?? null);
+// unwrap() keeps the toolbar from suspending: no options or counts while the
+// summary loads, and the previous ones while it reloads.
+const summaryAtom = unwrap(librarySummaryAtom, (previous) => previous ?? null);
 
 function isSort(value: string): value is LibrarySort {
   return SORTS.some((sort) => sort.value === value);
@@ -58,9 +54,20 @@ export function LibraryToolbar() {
   const [sinceDays, setSinceDays] = useAtom(sinceDaysAtom);
   const [tagFilter, setTagFilter] = useAtom(tagFilterAtom);
   const [sort, setSort] = useAtom(sortAtom);
-  const domainOptions = useAtomValue(domainOptionsAtom);
-  const tagOptions = useAtomValue(tagOptionsAtom);
-  const counts = useAtomValue(countsAtom);
+  const summary = useAtomValue(summaryAtom);
+  const domainOptions = summary?.ok ? summary.data.domains : [];
+  const tagOptions = summary?.ok ? summary.data.tags : [];
+  const counts = summary?.ok ? summary.data.counts : null;
+
+  // What is typed shows at once; the grid follows once the typing pauses.
+  const [typed, setTyped] = useState(search);
+  useEffect(() => {
+    if (typed === search) {
+      return;
+    }
+    const timer = window.setTimeout(() => setSearch(typed), SEARCH_PAUSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [typed, search, setSearch]);
 
   function toggleTag(tag: string): void {
     setTagFilter((current) =>
@@ -79,8 +86,8 @@ export function LibraryToolbar() {
             type="search"
             placeholder="Buscar manga…"
             aria-label="Buscar"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
           />
         </label>
         <div className="segmented">

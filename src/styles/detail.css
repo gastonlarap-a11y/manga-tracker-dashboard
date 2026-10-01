@@ -342,6 +342,10 @@
   contain-intrinsic-size: auto 160px;
 }
 
+.history-more {
+  justify-self: center;
+}
+
 .history-day-label {
   color: var(--text-3);
   font-size: 0.72rem;

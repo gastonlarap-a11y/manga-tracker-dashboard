@@ -5,9 +5,7 @@ import type { LibraryEntryDto } from "../../api/types";
 import { AmbientCover, CoverImage } from "../../components/CoverImage";
 import { markCoverForTransition } from "../../components/coverTransition";
 import { relativeDate } from "../../lib/dates";
-import { baseLibraryAtom } from "../../state/atoms";
-
-const RECENTS = 8;
+import { continueReadingAtom } from "../../state/atoms";
 
 function siteOf(url: string | null): string | null {
   if (url === null) {
@@ -24,17 +22,18 @@ function siteOf(url: string | null): string | null {
  * The manga last read, large, with the way back into it one click away — the
  * thing someone opening this app came to do — and the next few behind it.
  *
- * From the unfiltered snapshot: what you were reading does not change because
- * the grid below is filtered. The API sends the library most recently read
- * first, so the order is already the right one.
+ * A query of its own — the few series in progress read most recently — so
+ * what you were reading does not change because the grid below is filtered.
+ * A card whose readings have not synced in yet has nothing to continue, and
+ * is left out.
  */
 export function ContinueReading() {
-  const result = useAtomValue(baseLibraryAtom);
+  const result = useAtomValue(continueReadingAtom);
   if (!result.ok) {
     return null;
   }
-  const inProgress = result.data.filter(
-    (entry) => entry.status === "reading" && entry.lastActivity !== null,
+  const inProgress = result.data.items.filter(
+    (entry) => entry.lastActivity !== null,
   );
   const [current, ...others] = inProgress;
   if (current === undefined) {
@@ -116,7 +115,7 @@ export function ContinueReading() {
           </div>
         </div>
       </div>
-      {others.length > 0 && <Recents entries={others.slice(0, RECENTS)} />}
+      {others.length > 0 && <Recents entries={others} />}
     </section>
   );
 }

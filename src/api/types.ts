@@ -56,6 +56,41 @@ export interface LibraryEntryDto {
   aliasCount: number;
 }
 
+// GET /api/library/page: one page of cards, filtered, searched and ordered by
+// the server. `nextCursor` is opaque — passed back as `cursor` — and null on
+// the last page.
+export interface LibraryPageDto {
+  items: LibraryEntryDto[];
+  nextCursor: string | null;
+}
+
+export type LibrarySort = "recent" | "title" | "chapters";
+
+export interface LibraryPageQuery {
+  sort?: LibrarySort;
+  // 1..200; the server defaults to 60.
+  limit?: number;
+  cursor?: string;
+  status?: MangaStatus;
+  // Accent- and case-insensitive substring of the title.
+  q?: string;
+  domain?: string;
+  // ISO instant: only cards read since then.
+  since?: string;
+  // A card must carry every one of them.
+  tags?: string[];
+}
+
+// GET /api/library/summary: the totals and filter options, without the cards.
+export interface LibrarySummaryDto {
+  counts: { reading: number; completed: number; dropped: number; all: number };
+  chapters: number;
+  sites: number;
+  activeThisWeek: number;
+  domains: string[];
+  tags: string[];
+}
+
 export interface MangaHistoryDto {
   manga: MangaDto;
   // The mangas merged into this one. Empty for an untouched card; each can be
