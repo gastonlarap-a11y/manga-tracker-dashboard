@@ -43,7 +43,11 @@ export function ContinueReading() {
   const site = siteOf(current.lastSourceUrl);
 
   return (
+    // Keyed by the manga: another one read last arrives as a new hero that
+    // fades in, rather than a cover and a backdrop swapped in place. The same
+    // manga's next chapter keeps the key and only updates the text.
     <section
+      key={current.id}
       className="tile continue bento-continue"
       aria-labelledby="continue-title"
     >

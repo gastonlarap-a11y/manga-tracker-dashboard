@@ -1,5 +1,5 @@
 import { useSetAtom } from "jotai";
-import { useEffect } from "react";
+import { startTransition, useEffect } from "react";
 import {
   activityAtom,
   baseLibraryAtom,
@@ -32,14 +32,22 @@ export function LiveRefresh() {
     const source = new EventSource("/api/events/stream");
     let timer: number | undefined;
 
+    // In a transition, so React keeps the page that is already on screen
+    // while the new data arrives. Outside one, every refresh suspended the
+    // library back to its skeleton: the whole grid unmounted, every cover
+    // reloaded and every card replayed its entrance — once per chapter read
+    // in another tab. Jotai notifies its subscribers synchronously from these
+    // setters, so their re-renders are part of the transition.
     function refreshAll(): void {
-      refreshLibrary();
-      refreshBase();
-      refreshDuplicates();
-      refreshActivity();
-      // A sync that pulled something from another machine publishes this same
-      // event, so the badge is never staler than the data next to it.
-      refreshSyncStatus();
+      startTransition(() => {
+        refreshLibrary();
+        refreshBase();
+        refreshDuplicates();
+        refreshActivity();
+        // A sync that pulled something from another machine publishes this
+        // same event, so the badge is never staler than the data next to it.
+        refreshSyncStatus();
+      });
     }
 
     function onLibraryChanged(): void {
