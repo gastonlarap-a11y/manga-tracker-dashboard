@@ -9,25 +9,44 @@ import { CoverImage } from "./CoverImage";
 
 const GRID_PLACEHOLDERS = Array.from({ length: 12 }, (_, index) => index);
 
-export function LibrarySkeleton() {
+/**
+ * One tile of the bento while its own data loads. Each tile waits only for
+ * what it shows: the hero is a short page, the activity panel scans weeks of
+ * readings, and the grid below waits for neither.
+ */
+export function TileSkeleton({
+  area,
+}: {
+  area: "continue" | "activity" | "stats";
+}) {
+  return (
+    <div className={`library-skeleton bento-${area}`} aria-hidden="true">
+      <div className={`tile skeleton bento-${area}`} />
+    </div>
+  );
+}
+
+/** The grid alone, while its first page is on its way. */
+export function GridSkeleton() {
   return (
     <div className="library-skeleton" role="status">
-      <span className="visually-hidden">Cargando biblioteca…</span>
-      <div className="bento" aria-hidden="true">
-        <div className="tile skeleton bento-continue" />
-        <div className="tile skeleton bento-activity" />
-        <div className="tile skeleton bento-stats" />
-      </div>
-      <ul className="grid" aria-hidden="true">
-        {GRID_PLACEHOLDERS.map((index) => (
-          <li key={index} className="card">
-            <div className="card-media skeleton" />
-            <div className="skeleton skeleton-line" />
-            <div className="skeleton skeleton-line short" />
-          </li>
-        ))}
-      </ul>
+      <span className="visually-hidden">Cargando mangas…</span>
+      <GridShapes />
     </div>
+  );
+}
+
+function GridShapes() {
+  return (
+    <ul className="grid" aria-hidden="true">
+      {GRID_PLACEHOLDERS.map((index) => (
+        <li key={index} className="card">
+          <div className="card-media skeleton" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line short" />
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   deleteManga,
-  getLibrary,
+  getLibraryPage,
   getMangaHistory,
   mergeMangas,
   unmergeManga,
@@ -31,7 +31,12 @@ import { AmbientCover, CoverImage } from "../components/CoverImage";
 import { RenameForm } from "../components/RenameForm";
 import { DetailSkeleton } from "../components/Skeleton";
 import { formatDate, relativeDate } from "../lib/dates";
-import { baseLibraryAtom, libraryAtom } from "../state/atoms";
+import {
+  continueReadingAtom,
+  refreshLibraryAtom,
+  SEARCH_PAUSE_MS,
+} from "../state/atoms";
+import { libraryPagesAtom } from "../state/libraryPages";
 import { ReadingHistory } from "./detail/ReadingHistory";
 
 type HistoryState =
@@ -52,18 +57,32 @@ const shortDate = new Intl.DateTimeFormat("es", {
 });
 
 // What the library already knows, without suspending: shown while the history
-// loads (see DetailSkeleton), never instead of it.
-const cachedLibraryAtom = unwrap(
-  baseLibraryAtom,
+// loads (see DetailSkeleton), never instead of it. Coming from a card, the
+// card is in the grid's pages or in the recents above it.
+const cachedRecentsAtom = unwrap(
+  continueReadingAtom,
   (previous) => previous ?? null,
 );
+
+function useKnownEntry(id: string | undefined): LibraryEntryDto | undefined {
+  const pages = useAtomValue(libraryPagesAtom);
+  const recents = useAtomValue(cachedRecentsAtom);
+  if (id === undefined) {
+    return undefined;
+  }
+  return (
+    pages?.items.find((entry) => entry.id === id) ??
+    (recents?.ok
+      ? recents.data.items.find((entry) => entry.id === id)
+      : undefined)
+  );
+}
 
 export function MangaDetailView() {
   const { id } = useParams<{ id: string }>();
   const [state, setState] = useState<HistoryState>({ kind: "loading" });
-  const cachedLibrary = useAtomValue(cachedLibraryAtom);
-  const refreshLibrary = useSetAtom(libraryAtom);
-  const refreshBase = useSetAtom(baseLibraryAtom);
+  const known = useKnownEntry(id);
+  const refreshLibrary = useSetAtom(refreshLibraryAtom);
   // Bumped after a merge or an unmerge: the whole history changes shape, so it
   // is refetched rather than patched in place.
   const [reloads, setReloads] = useState(0);
@@ -93,7 +112,6 @@ export function MangaDetailView() {
   function reloadEverything(): void {
     setReloads((count) => count + 1);
     refreshLibrary();
-    refreshBase();
   }
 
   function applyManga(manga: MangaDto): void {
@@ -102,15 +120,11 @@ export function MangaDetailView() {
         ? { kind: "loaded", history: { ...previous.history, manga } }
         : previous,
     );
-    // The cached library projections still show the old values.
+    // The pages the library holds still show the old values.
     refreshLibrary();
-    refreshBase();
   }
 
   if (state.kind === "loading") {
-    const known = cachedLibrary?.ok
-      ? cachedLibrary.data.find((entry) => entry.id === id)
-      : undefined;
     return <DetailSkeleton entry={known} />;
   }
   if (state.kind === "error") {
@@ -204,9 +218,11 @@ export function MangaDetailView() {
   );
 }
 
+// No view transition: the library is kept alive behind this page and comes
+// back at once, where it was left; animating the way there only delayed it.
 function BackLink() {
   return (
-    <Link className="back" to="/" viewTransition>
+    <Link className="back" to="/">
       <ArrowLeft aria-hidden="true" />
       Biblioteca
     </Link>
@@ -267,7 +283,7 @@ function Facts({ events }: { events: HistoryEventDto[] }) {
 
 type MergeState =
   | { kind: "idle" }
-  | { kind: "picking"; query: string; candidates: LibraryEntryDto[] }
+  | { kind: "picking" }
   | { kind: "working" }
   | { kind: "error"; error: string };
 
@@ -289,22 +305,6 @@ function MergedSources({
   onChanged: () => void;
 }) {
   const [state, setState] = useState<MergeState>({ kind: "idle" });
-
-  async function openPicker(): Promise<void> {
-    setState({ kind: "working" });
-    const result = await getLibrary();
-    setState(
-      result.ok
-        ? {
-            kind: "picking",
-            query: "",
-            // Every other card is a valid target: the point is joining titles
-            // that look nothing alike.
-            candidates: result.data.filter((entry) => entry.id !== manga.id),
-          }
-        : { kind: "error", error: result.error },
-    );
-  }
 
   async function merge(aliasId: string): Promise<void> {
     setState({ kind: "working" });
@@ -356,11 +356,7 @@ function MergedSources({
 
       {state.kind === "picking" ? (
         <MergePicker
-          query={state.query}
-          candidates={state.candidates}
-          onQuery={(query) =>
-            setState({ kind: "picking", query, candidates: state.candidates })
-          }
+          excludeId={manga.id}
           onPick={(id) => void merge(id)}
           onCancel={() => setState({ kind: "idle" })}
         />
@@ -369,7 +365,7 @@ function MergedSources({
           type="button"
           className="ghost"
           disabled={busy}
-          onClick={() => void openPicker()}
+          onClick={() => setState({ kind: "picking" })}
         >
           <Combine aria-hidden="true" />
           Es el mismo que…
@@ -384,25 +380,63 @@ function MergedSources({
   );
 }
 
-// Client-side filtering: the library is small enough that the whole list is
-// already in hand, exactly like the toolbar's search.
+/** Options the picker lists: enough to find one, few enough to scan. */
+const PICKER_OPTIONS = 8;
+
+type PickerOptions =
+  | { kind: "loading" }
+  | { kind: "ready"; entries: LibraryEntryDto[] }
+  | { kind: "error"; error: string };
+
+// Searched by the server, like the toolbar: the browser does not hold the
+// library, and asking for all of it to show eight was what it used to cost.
+// Every other card is a valid target — the point is joining titles that look
+// nothing alike — so the search is over the whole library, any status.
 function MergePicker({
-  query,
-  candidates,
-  onQuery,
+  excludeId,
   onPick,
   onCancel,
 }: {
-  query: string;
-  candidates: LibraryEntryDto[];
-  onQuery: (query: string) => void;
+  excludeId: string;
   onPick: (id: string) => void;
   onCancel: () => void;
 }) {
-  const needle = query.trim().toLowerCase();
-  const matches = candidates
-    .filter((entry) => entry.canonicalName.toLowerCase().includes(needle))
-    .slice(0, 8);
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState<PickerOptions>({ kind: "loading" });
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(
+      async () => {
+        const result = await getLibraryPage({
+          q: query,
+          // One more than shown, in case the manga being viewed is among them.
+          limit: PICKER_OPTIONS + 1,
+        });
+        if (cancelled) {
+          return;
+        }
+        setOptions(
+          result.ok
+            ? {
+                kind: "ready",
+                entries: result.data.items
+                  .filter((entry) => entry.id !== excludeId)
+                  .slice(0, PICKER_OPTIONS),
+              }
+            : { kind: "error", error: result.error },
+        );
+      },
+      // The first list, before anything is typed, need not wait.
+      query === "" ? 0 : SEARCH_PAUSE_MS,
+    );
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query, excludeId]);
+
+  const matches = options.kind === "ready" ? options.entries : [];
 
   return (
     <div className="merge-picker">
@@ -411,7 +445,7 @@ function MergePicker({
           value={query}
           aria-label="Buscar el manga a unir"
           placeholder="Buscar en la biblioteca…"
-          onChange={(event) => onQuery(event.target.value)}
+          onChange={(event) => setQuery(event.target.value)}
         />
         <button
           type="button"
@@ -442,7 +476,14 @@ function MergePicker({
             </button>
           </li>
         ))}
-        {matches.length === 0 && <li className="meta">Sin coincidencias.</li>}
+        {options.kind === "ready" && matches.length === 0 && (
+          <li className="meta">Sin coincidencias.</li>
+        )}
+        {options.kind === "error" && (
+          <li className="error" role="alert">
+            {options.error}
+          </li>
+        )}
       </ul>
     </div>
   );
@@ -680,8 +721,7 @@ type DangerState =
 function DangerZone({ mangaId, name }: { mangaId: string; name: string }) {
   const [zone, setZone] = useState<DangerState>({ kind: "idle" });
   const navigate = useNavigate();
-  const refreshLibrary = useSetAtom(libraryAtom);
-  const refreshBase = useSetAtom(baseLibraryAtom);
+  const refreshLibrary = useSetAtom(refreshLibraryAtom);
 
   async function confirmDelete(): Promise<void> {
     setZone({ kind: "deleting" });
@@ -691,7 +731,6 @@ function DangerZone({ mangaId, name }: { mangaId: string; name: string }) {
       return;
     }
     refreshLibrary();
-    refreshBase();
     void navigate("/");
   }
 

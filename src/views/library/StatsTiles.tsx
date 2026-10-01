@@ -6,9 +6,8 @@ import {
   Globe,
   type LucideIcon,
 } from "lucide-react";
-import { baseLibraryAtom } from "../../state/atoms";
+import { librarySummaryAtom } from "../../state/atoms";
 
-const DAY_MS = 86_400_000;
 const numbers = new Intl.NumberFormat("es");
 
 interface Stat {
@@ -17,37 +16,23 @@ interface Stat {
   readonly Icon: LucideIcon;
 }
 
-/** Totals over the whole library, whatever the grid below is filtered to. */
+/**
+ * Totals over the whole library, whatever the grid below is filtered to —
+ * counted by the server, which holds the library the browser never does.
+ */
 export function StatsTiles() {
-  const result = useAtomValue(baseLibraryAtom);
+  const result = useAtomValue(librarySummaryAtom);
   if (!result.ok) {
     return null;
   }
-  const entries = result.data;
-  const weekAgo = Date.now() - 7 * DAY_MS;
+  const summary = result.data;
   const stats: Stat[] = [
-    {
-      label: "En lectura",
-      value: entries.filter((entry) => entry.status === "reading").length,
-      Icon: BookOpen,
-    },
-    {
-      label: "Capítulos leídos",
-      value: entries.reduce((sum, entry) => sum + entry.readCount, 0),
-      Icon: BookOpenCheck,
-    },
-    {
-      label: "Sitios",
-      value: new Set(entries.flatMap((entry) => entry.sourceDomains)).size,
-      Icon: Globe,
-    },
+    { label: "En lectura", value: summary.counts.reading, Icon: BookOpen },
+    { label: "Capítulos leídos", value: summary.chapters, Icon: BookOpenCheck },
+    { label: "Sitios", value: summary.sites, Icon: Globe },
     {
       label: "Activos esta semana",
-      value: entries.filter(
-        (entry) =>
-          entry.lastActivity &&
-          new Date(entry.lastActivity.readAt).getTime() >= weekAgo,
-      ).length,
+      value: summary.activeThisWeek,
       Icon: CalendarCheck,
     },
   ];

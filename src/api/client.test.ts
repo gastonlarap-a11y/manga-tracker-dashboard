@@ -3,7 +3,8 @@ import { jsonResponse } from "../test-utils";
 import {
   deleteManga,
   getDuplicates,
-  getLibrary,
+  getLibraryPage,
+  getLibrarySummary,
   getMangaHistory,
   updateManga,
 } from "./client";
@@ -15,28 +16,60 @@ beforeEach(() => {
   fetchMock.mockReset();
 });
 
-describe("getLibrary", () => {
-  it("requests the plain library when no filters are set", async () => {
-    fetchMock.mockResolvedValue(jsonResponse([]));
+describe("getLibraryPage", () => {
+  it("asks for the first page with the server's defaults when nothing is set", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ items: [], nextCursor: null }));
 
-    const result = await getLibrary();
+    const result = await getLibraryPage();
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/library", undefined);
-    expect(result).toEqual({ ok: true, data: [] });
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/page", undefined);
+    expect(result).toEqual({ ok: true, data: { items: [], nextCursor: null } });
   });
 
-  it("passes domain and since as query params", async () => {
-    fetchMock.mockResolvedValue(jsonResponse([]));
+  it("sends every filter that is on, and the tags as one list", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ items: [], nextCursor: null }));
 
-    await getLibrary({
+    await getLibraryPage({
+      sort: "title",
+      limit: 60,
+      cursor: "abc",
+      status: "completed",
+      q: "  invocación ",
       domain: "olympusxyz.com",
       since: "2026-07-01T00:00:00.000Z",
+      tags: ["accion", "seinen"],
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/library?domain=olympusxyz.com&since=2026-07-01T00%3A00%3A00.000Z",
-      undefined,
-    );
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]), "http://x");
+    expect(url.pathname).toBe("/api/library/page");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      sort: "title",
+      limit: "60",
+      cursor: "abc",
+      status: "completed",
+      q: "invocación",
+      domain: "olympusxyz.com",
+      since: "2026-07-01T00:00:00.000Z",
+      tags: "accion,seinen",
+    });
+  });
+
+  it("leaves out a filter that is off instead of sending it empty", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ items: [], nextCursor: null }));
+
+    await getLibraryPage({ q: "   ", domain: "", tags: [] });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/page", undefined);
+  });
+});
+
+describe("getLibrarySummary", () => {
+  it("reads the totals endpoint", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ counts: {} }));
+
+    await getLibrarySummary();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/summary", undefined);
   });
 });
 

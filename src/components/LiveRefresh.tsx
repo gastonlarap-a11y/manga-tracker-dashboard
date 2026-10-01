@@ -2,10 +2,9 @@ import { useSetAtom } from "jotai";
 import { startTransition, useEffect } from "react";
 import {
   activityAtom,
-  baseLibraryAtom,
   duplicatesAtom,
-  libraryAtom,
   liveStatusAtom,
+  refreshLibraryAtom,
   syncStatusAtom,
 } from "../state/atoms";
 
@@ -21,8 +20,7 @@ const DEBOUNCE_MS = 300;
 // - on the tab becoming visible again (Chrome/Brave throttle or freeze
 //   background tabs, which can pause timers and drop the connection).
 export function LiveRefresh() {
-  const refreshLibrary = useSetAtom(libraryAtom);
-  const refreshBase = useSetAtom(baseLibraryAtom);
+  const refreshLibrary = useSetAtom(refreshLibraryAtom);
   const refreshDuplicates = useSetAtom(duplicatesAtom);
   const refreshActivity = useSetAtom(activityAtom);
   const refreshSyncStatus = useSetAtom(syncStatusAtom);
@@ -41,7 +39,6 @@ export function LiveRefresh() {
     function refreshAll(): void {
       startTransition(() => {
         refreshLibrary();
-        refreshBase();
         refreshDuplicates();
         refreshActivity();
         // A sync that pulled something from another machine publishes this
@@ -82,7 +79,6 @@ export function LiveRefresh() {
     };
   }, [
     refreshLibrary,
-    refreshBase,
     refreshDuplicates,
     refreshActivity,
     refreshSyncStatus,

@@ -4,7 +4,7 @@ import { startTransition, useId, useState } from "react";
 import { syncNow } from "../api/client";
 import type { SyncStatusDto } from "../api/types";
 import { relativeDate } from "../lib/dates";
-import { baseLibraryAtom, libraryAtom, syncStatusAtom } from "../state/atoms";
+import { refreshLibraryAtom, syncStatusAtom } from "../state/atoms";
 
 // Renders nothing while the first request is in flight, and nothing at all when
 // this install never configured the off-site store — an empty header beats a
@@ -66,8 +66,7 @@ function appearance(
 export function SyncBadge() {
   const result = useAtomValue(statusAtom);
   const refreshStatus = useSetAtom(syncStatusAtom);
-  const refreshLibrary = useSetAtom(libraryAtom);
-  const refreshBase = useSetAtom(baseLibraryAtom);
+  const refreshLibrary = useSetAtom(refreshLibraryAtom);
   // Only what this component owns: the outcome of a click. Everything else is
   // read back from the server through syncStatusAtom.
   const [running, setRunning] = useState(false);
@@ -90,7 +89,6 @@ export function SyncBadge() {
     startTransition(() => {
       refreshStatus();
       refreshLibrary();
-      refreshBase();
     });
     setRunning(false);
   }

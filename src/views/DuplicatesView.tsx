@@ -7,7 +7,7 @@ import { dismissDuplicate, mergeMangas } from "../api/client";
 import type { DuplicatePairDto, MangaDto } from "../api/types";
 import { CoverImage } from "../components/CoverImage";
 import { RenameForm } from "../components/RenameForm";
-import { baseLibraryAtom, duplicatesAtom, libraryAtom } from "../state/atoms";
+import { duplicatesAtom, refreshLibraryAtom } from "../state/atoms";
 
 const REASON_LABELS: Record<string, string> = {
   tokens: "palabras casi iguales",
@@ -44,8 +44,7 @@ export function DuplicatesView() {
 function DuplicatesList() {
   const result = useAtomValue(duplicatesAtom);
   const refreshDuplicates = useSetAtom(duplicatesAtom);
-  const refreshLibrary = useSetAtom(libraryAtom);
-  const refreshBase = useSetAtom(baseLibraryAtom);
+  const refreshLibrary = useSetAtom(refreshLibraryAtom);
 
   // A transition keeps the list on screen while it reloads, so resolving one
   // pair does not drop every other pair back to the skeleton.
@@ -53,7 +52,6 @@ function DuplicatesList() {
     startTransition(() => {
       refreshDuplicates();
       refreshLibrary();
-      refreshBase();
     });
   }
 

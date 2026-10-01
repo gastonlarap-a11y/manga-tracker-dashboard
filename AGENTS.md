@@ -9,11 +9,15 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
 ## Layout
 - `src/api/` — backend contract: `types.ts` (hand-duplicated DTOs) + `client.ts`
   (`ApiResult<T>` fetch wrapper; relative paths, same-origin)
-- `src/state/atoms.ts` — Jotai: server filters (domain/since → refetch), client filters
-  (search/status tab/tags → filter in memory), `atomWithRefresh` data atoms and the
-  unfiltered `baseLibraryAtom` snapshot (stats + select/chip options)
+- `src/state/atoms.ts` — Jotai: the grid's query (sort, status tab, search, site, period,
+  tags — **all applied by the server**), `atomWithRefresh` data atoms (the summary behind the
+  stats, counts and filter options; the continue-reading page; activity; duplicates; sync),
+  `libraryRevisionAtom` and `refreshLibraryAtom`, the one action every mutation calls
+- `src/state/libraryPages.ts` — the grid's pages, in the store: a new query reads its first
+  page, a new revision re-reads every card already held, the newest request always wins
 - `src/App.tsx` — a **data router** (`createBrowserRouter`, `RouterProvider` from
-  `react-router/dom`): `viewTransition` links and `<ScrollRestoration>` exist only there
+  `react-router/dom`): `viewTransition` links and `<ScrollRestoration>` exist only there.
+  The library is passed to `Layout`, which keeps it alive (see Rules); its route is empty
 - `src/views/` — one component per route (`/`, `/manga/:id`, `/duplicates`) with
   colocated `*.test.tsx`, and their parts beside them: `views/library/` (the overview bento
   — continue reading, activity, stats — the floating toolbar and the 2:3 cover grid),
@@ -35,9 +39,12 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   `Skeleton`, `EmbedChrome`, `coverTransition` (names the clicked cover for the morph)
 - `src/styles/` — `tokens.css` (every colour, radius and duration, both themes) and one
   file per area; `main.tsx` imports them in order
-- `src/lib/` — pure utilities with colocated tests
+- `src/lib/` — pure utilities with colocated tests; `virtualRows.ts` is which rows of the
+  grid are in the page for a given scroll
 - `src/test-utils.tsx` — async `renderWithProviders` (jotai store + MemoryRouter) —
-  see Rules. `Layout` needs a data router, so its test builds one (`createMemoryRouter`)
+  see Rules. `Layout` needs a data router, so its test builds one (`createMemoryRouter`).
+  `fakeLibraryApi` answers the library endpoints as the API does (filtered, searched,
+  ordered, paged) over cards in memory
 
 ## Commands
 - Dev: `bun run dev` (vite :5173, proxies `/api`+`/health` → :5150)
@@ -69,6 +76,25 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   card replayed its entrance, once per chapter read in another tab. Inside one, React keeps
   what is on screen until the new data is there (Jotai notifies from the setter, so the
   re-render belongs to the transition). Only a first load shows a skeleton.
+- **The browser never holds the whole library.** It used to: every visit fetched every card,
+  and search, tabs, tags and order ran in memory — fine at a hundred, megabytes and a frozen
+  tab at ten thousand. The grid reads `GET /api/library/page` a page at a time (keyset
+  cursors, filters and search on the server), the stats, tab counts and filter options come
+  from `GET /api/library/summary`, the hero from its own short page. Nothing calls
+  `/api/library`; a test says so. A new filter is a server parameter, not a `.filter()`.
+- **Only the rows near the window are in the page.** The grid pads above and below for the
+  rest (`lib/virtualRows.ts`), which is a division and not a measurement because every card
+  has the same height: the 2:3 cover, a title box of two lines, one line of meta. A card
+  that could grow taller breaks the grid's arithmetic — keep it the same height. The column
+  count and a card's height are read from the CSS as resolved, so `library.css` alone
+  decides the shape. No `content-visibility` on cards: an off-screen card reports its
+  placeholder size.
+- **The library stays mounted behind the other pages** (`<Activity>` in `Layout`). Coming
+  back from Duplicados or a manga used to rebuild it — every page fetched again, every cover
+  decoded again, a view transition delaying it all. Now it is shown as it was left, and
+  `ScrollRestoration` remembers its position by path, so the bar and the back link restore it
+  too, not only the browser's back. `viewTransition` is kept only for the cover morph from a
+  card into its page, never between sections.
 - **Glass is the navigation layer, never the content** (Apple's own rule for Liquid Glass):
   the bar, the floating toolbar, pills over covers. Tiles, cards and the history are solid
   surfaces, and glass never stacks on glass.

@@ -1,7 +1,7 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MangaHistoryDto } from "../api/types";
+import type { LibraryEntryDto, MangaHistoryDto } from "../api/types";
 import {
   actAsync,
   jsonResponse,
@@ -68,13 +68,17 @@ beforeEach(() => {
       if (url === "/api/mangas/m1" && init?.method === "DELETE") {
         return Promise.resolve(new Response(null, { status: 204 }));
       }
-      if (url.startsWith("/api/library")) {
-        return Promise.resolve(jsonResponse([]));
+      if (url.startsWith("/api/library/page")) {
+        return Promise.resolve(page([]));
       }
       return Promise.resolve(jsonResponse({ error: "unexpected" }, 500));
     },
   );
 });
+
+function page(items: LibraryEntryDto[]): Response {
+  return jsonResponse({ items, nextCursor: null });
+}
 
 describe("MangaDetailView", () => {
   it("renders the header, tags and full history", async () => {
@@ -115,9 +119,9 @@ describe("MangaDetailView", () => {
           releaseHistory = () => resolve(jsonResponse(history));
         });
       }
-      if (url.startsWith("/api/library")) {
+      if (url.startsWith("/api/library/page")) {
         return Promise.resolve(
-          jsonResponse([
+          page([
             libraryEntry({ id: "m1", canonicalName: "El Genio entrenador" }),
           ]),
         );
@@ -218,8 +222,8 @@ describe("MangaDetailView", () => {
           lastPutBody = JSON.parse(String(init.body));
           return Promise.resolve(jsonResponse({ ...manga, coverUrl: null }));
         }
-        if (url.startsWith("/api/library")) {
-          return Promise.resolve(jsonResponse([]));
+        if (url.startsWith("/api/library/page")) {
+          return Promise.resolve(page([]));
         }
         return Promise.resolve(jsonResponse({ error: "unexpected" }, 500));
       },
@@ -260,6 +264,46 @@ describe("MangaDetailView", () => {
 
     expect(await screen.findByText(/Manga not found/)).toBeDefined();
   });
+
+  it("shows the latest readings first and the rest on request", async () => {
+    const events = Array.from({ length: 400 }, (_, index) => ({
+      ...history.events[0],
+      id: `e${index}`,
+      chapterLabel: `Cap. ${400 - index}`,
+      chapterNumber: 400 - index,
+      readAt: new Date(Date.UTC(2026, 6, 15) - index * 3_600_000).toISOString(),
+    })) as MangaHistoryDto["events"];
+    fetchMock.mockImplementation((input: RequestInfo | URL) =>
+      String(input) === "/api/mangas/m1/history"
+        ? Promise.resolve(jsonResponse({ ...history, events }))
+        : Promise.resolve(page([])),
+    );
+
+    await renderDetail();
+    const region = within(
+      await screen.findByRole("region", { name: "Historial" }),
+    );
+    expect(region.getAllByRole("link", { name: /^Abrir Cap/ })).toHaveLength(
+      150,
+    );
+
+    await actAsync(() => {
+      fireEvent.click(
+        region.getByRole("button", {
+          name: "Mostrar 150 más · quedan 250 capítulos",
+        }),
+      );
+    });
+
+    expect(region.getAllByRole("link", { name: /^Abrir Cap/ })).toHaveLength(
+      300,
+    );
+    expect(
+      region.getByRole("button", {
+        name: "Mostrar 100 más · quedan 100 capítulos",
+      }),
+    ).toBeDefined();
+  });
 });
 
 describe("MangaDetailView: joining two titles by hand", () => {
@@ -273,8 +317,8 @@ describe("MangaDetailView: joining two titles by hand", () => {
         if (url === "/api/mangas/m1/history") {
           return Promise.resolve(jsonResponse(history));
         }
-        if (url === "/api/library") {
-          return Promise.resolve(jsonResponse([libraryEntry(), other]));
+        if (url.startsWith("/api/library/page")) {
+          return Promise.resolve(page([libraryEntry(), other]));
         }
         if (url === "/api/duplicates/merge" && init?.method === "POST") {
           return Promise.resolve(
@@ -294,8 +338,9 @@ describe("MangaDetailView: joining two titles by hand", () => {
     await actAsync(() => {
       fireEvent.click(screen.getByText("Es el mismo que…"));
     });
+    const option = await screen.findByText("Genius Trainer");
     await actAsync(() => {
-      fireEvent.click(screen.getByText("Genius Trainer"));
+      fireEvent.click(option);
     });
 
     const mergeCall = fetchMock.mock.calls.find(
@@ -305,6 +350,36 @@ describe("MangaDetailView: joining two titles by hand", () => {
       canonicalId: "m1",
       aliasId: "m2",
     });
+  });
+
+  it("searches the whole library for the other title, not a list in hand", async () => {
+    await renderDetail();
+    await screen.findByRole("heading", { name: "El Genio entrenador" });
+    await actAsync(() => {
+      fireEvent.click(screen.getByText("Es el mismo que…"));
+    });
+    await screen.findByText("Genius Trainer");
+    // The server's answer includes m1 — the manga on screen, under the
+    // fixture's default name — and it is never offered as its own duplicate.
+    expect(screen.queryByText("One Piece")).toBeNull();
+
+    await actAsync(() => {
+      fireEvent.change(screen.getByLabelText("Buscar el manga a unir"), {
+        target: { value: "genius" },
+      });
+    });
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls
+          .map((call) => new URL(String(call[0]), "http://dashboard.test"))
+          .some(
+            (url) =>
+              url.pathname === "/api/library/page" &&
+              url.searchParams.get("q") === "genius",
+          ),
+      ).toBe(true),
+    );
   });
 
   it("lists the merged-in titles and can detach one again", async () => {
@@ -318,8 +393,8 @@ describe("MangaDetailView: joining two titles by hand", () => {
           }),
         );
       }
-      if (url.startsWith("/api/library")) {
-        return Promise.resolve(jsonResponse([]));
+      if (url.startsWith("/api/library/page")) {
+        return Promise.resolve(page([]));
       }
       return Promise.resolve(jsonResponse(mangaDto({ id: "m2" })));
     });

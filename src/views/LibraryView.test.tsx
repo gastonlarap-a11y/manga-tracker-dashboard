@@ -1,8 +1,9 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryActivityDto, LibraryEntryDto } from "../api/types";
 import {
   actAsync,
+  fakeLibraryApi,
   jsonResponse,
   libraryEntry,
   renderWithProviders,
@@ -33,18 +34,20 @@ const activity: LibraryActivityDto = {
   })),
 };
 
-/** Answers each endpoint the library page reads with its own shape. */
+/** Answers each endpoint the library page reads the way the API would. */
 function serve(library: LibraryEntryDto[]) {
-  fetchMock.mockImplementation((input: RequestInfo | URL) => {
-    const url = String(input);
-    if (url.startsWith("/api/library/activity")) {
-      return Promise.resolve(jsonResponse(activity));
-    }
-    if (url.startsWith("/api/library")) {
-      return Promise.resolve(jsonResponse(library));
-    }
-    return Promise.resolve(jsonResponse({ error: "unexpected" }, 500));
-  });
+  const api = fakeLibraryApi(library, activity);
+  fetchMock.mockImplementation(
+    (input: RequestInfo | URL) =>
+      api(input) ?? Promise.resolve(jsonResponse({ error: "unexpected" }, 500)),
+  );
+}
+
+/** Every URL the page asked for, in order. */
+function requested(): URL[] {
+  return fetchMock.mock.calls.map(
+    (call) => new URL(String(call[0]), "http://dashboard.test"),
+  );
 }
 
 /** The collection itself — the hero and the recents above repeat titles. */
@@ -91,17 +94,38 @@ describe("LibraryView", () => {
     expect(screen.getByRole("button", { name: "Todos 2" })).toBeDefined();
   });
 
-  it("filters by accent-insensitive search", async () => {
+  it("asks the server to search once the typing pauses", async () => {
+    serve([
+      reading,
+      libraryEntry({ id: "m3", canonicalName: "Invocación de la villana" }),
+    ]);
     await renderWithProviders(<LibraryView />);
     await grid();
 
     await actAsync(() => {
       fireEvent.change(screen.getByLabelText("Buscar"), {
-        target: { value: "one piece" },
+        target: { value: "invocacion" },
       });
     });
+    // What was typed shows at once; the request waits for the pause.
+    expect((screen.getByLabelText("Buscar") as HTMLInputElement).value).toBe(
+      "invocacion",
+    );
+    expect(requested().some((url) => url.searchParams.has("q"))).toBe(false);
 
-    expect((await grid()).getByText("One Piece")).toBeDefined();
+    await waitFor(async () =>
+      expect((await grid()).queryByText("One Piece")).toBeNull(),
+    );
+    expect((await grid()).getByText("Invocación de la villana")).toBeDefined();
+    const searches = requested().filter((url) => url.searchParams.has("q"));
+    expect(searches.map((url) => url.searchParams.get("q"))).toEqual([
+      "invocacion",
+    ]);
+  });
+
+  it("says when nothing matches the search", async () => {
+    await renderWithProviders(<LibraryView />);
+    await grid();
 
     await actAsync(() => {
       fireEvent.change(screen.getByLabelText("Buscar"), {
@@ -109,10 +133,41 @@ describe("LibraryView", () => {
       });
     });
 
-    expect(screen.queryByRole("list", { name: "Mangas" })).toBeNull();
     expect(
-      screen.getByText("Nada coincide con los filtros en esta pestaña."),
+      await screen.findByText("Nada coincide con los filtros en esta pestaña."),
     ).toBeDefined();
+    expect(screen.queryByRole("list", { name: "Mangas" })).toBeNull();
+  });
+
+  it("loads the next page as the end of the grid comes near", async () => {
+    const many = Array.from({ length: 130 }, (_, index) =>
+      libraryEntry({
+        id: `m${String(index).padStart(3, "0")}`,
+        canonicalName: `Serie ${index}`,
+        lastActivity: {
+          readAt: new Date(Date.UTC(2026, 6, 1) - index * 60_000).toISOString(),
+          chapterLabel: "Cap. 1",
+        },
+      }),
+    );
+    serve(many);
+    await renderWithProviders(<LibraryView />);
+
+    // Without a layout to measure, every loaded row is "near the end", so
+    // the pages follow one another until the last.
+    await waitFor(async () =>
+      expect((await grid()).getAllByRole("listitem")).toHaveLength(130),
+    );
+    const pages = requested().filter(
+      (url) =>
+        url.pathname === "/api/library/page" &&
+        url.searchParams.get("limit") === "60",
+    );
+    expect(pages.map((url) => url.searchParams.get("cursor"))).toEqual([
+      null,
+      "60",
+      "120",
+    ]);
   });
 
   it("filters by tag chips", async () => {
@@ -236,15 +291,15 @@ describe("LibraryView", () => {
     await renderWithProviders(<LibraryView />);
     await grid();
 
-    const url = fetchMock.mock.calls
-      .map((call) => String(call[0]))
-      .find((called) => called.startsWith("/api/library/activity"));
-    expect(url).toContain(
-      `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`,
+    const url = requested().find(
+      (called) => called.pathname === "/api/library/activity",
+    );
+    expect(url?.searchParams.get("tz")).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
     );
   });
 
-  it("refetches with the selected domain filter", async () => {
+  it("asks the server for the selected site", async () => {
     await renderWithProviders(<LibraryView />);
     await grid();
     await screen.findByRole("option", { name: "olympusxyz.com" });
@@ -255,8 +310,24 @@ describe("LibraryView", () => {
       });
     });
 
-    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(urls).toContain("/api/library?domain=olympusxyz.com");
+    await waitFor(() =>
+      expect(
+        requested().some(
+          (url) =>
+            url.pathname === "/api/library/page" &&
+            url.searchParams.get("domain") === "olympusxyz.com",
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("never asks for the whole library", async () => {
+    await renderWithProviders(<LibraryView />);
+    await grid();
+
+    expect(requested().map((url) => url.pathname)).not.toContain(
+      "/api/library",
+    );
   });
 
   it("shows the empty state when there are no readings", async () => {
