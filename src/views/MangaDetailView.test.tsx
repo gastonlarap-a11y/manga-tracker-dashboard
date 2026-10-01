@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MangaHistoryDto } from "../api/types";
@@ -83,13 +83,56 @@ describe("MangaDetailView", () => {
     expect(
       await screen.findByRole("heading", { name: "El Genio entrenador" }),
     ).toBeDefined();
-    expect(screen.getByText("Cap. 122")).toBeDefined();
-    expect(screen.getByText("accion")).toBeDefined();
+    const history = within(screen.getByRole("region", { name: "Historial" }));
+    expect(history.getByText("Cap. 122")).toBeDefined();
     expect(
-      screen
-        .getByRole("link", { name: "Seguir leyendo ↗" })
+      history
+        .getByRole("link", { name: "Abrir Cap. 122" })
         .getAttribute("href"),
     ).toBe("https://olympusxyz.com/capitulo/130729/");
+    expect(screen.getByText("accion")).toBeDefined();
+    expect(
+      screen.getByRole("link", { name: "Seguir leyendo" }).getAttribute("href"),
+    ).toBe("https://olympusxyz.com/capitulo/130729/");
+  });
+
+  it("keeps the slug out of the way, under the technical details", async () => {
+    await renderDetail();
+    await screen.findByRole("heading", { name: "El Genio entrenador" });
+
+    const slug = screen.getByText("el-genio-entrenador");
+    expect(slug.closest("details")?.querySelector("summary")?.textContent).toBe(
+      "Detalles técnicos",
+    );
+  });
+
+  it("shows what the library already knows while the history loads", async () => {
+    let releaseHistory: () => void = () => {};
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/mangas/m1/history") {
+        return new Promise<Response>((resolve) => {
+          releaseHistory = () => resolve(jsonResponse(history));
+        });
+      }
+      if (url.startsWith("/api/library")) {
+        return Promise.resolve(
+          jsonResponse([
+            libraryEntry({ id: "m1", canonicalName: "El Genio entrenador" }),
+          ]),
+        );
+      }
+      return Promise.resolve(jsonResponse({ error: "unexpected" }, 500));
+    });
+
+    await renderDetail();
+
+    expect(await screen.findByText("El Genio entrenador")).toBeDefined();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    await actAsync(() => releaseHistory());
+    expect(
+      await screen.findByRole("heading", { name: "El Genio entrenador" }),
+    ).toBeDefined();
   });
 
   it("renames the manga through the inline form", async () => {
@@ -274,6 +317,9 @@ describe("MangaDetailView: joining two titles by hand", () => {
             aliases: [mangaDto({ id: "m2", canonicalName: "Genius Trainer" })],
           }),
         );
+      }
+      if (url.startsWith("/api/library")) {
+        return Promise.resolve(jsonResponse([]));
       }
       return Promise.resolve(jsonResponse(mangaDto({ id: "m2" })));
     });

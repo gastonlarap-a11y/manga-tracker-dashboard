@@ -1,0 +1,451 @@
+/* One manga: its cover and actions on one side, everything about it on the
+   other, over a backdrop made of the cover itself. */
+
+.detail {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 18px;
+}
+
+/* The backdrop bleeds to the edges of the page and fades out downwards. */
+.detail-ambient {
+  inset: calc(-1 * clamp(16px, 2vw, 28px)) calc(-1 * var(--gutter)) auto;
+  height: 560px;
+  border-radius: 0;
+  -webkit-mask-image: linear-gradient(to bottom, black 35%, transparent);
+  mask-image: linear-gradient(to bottom, black 35%, transparent);
+}
+
+.detail-ambient::after {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--bg) 25%, transparent),
+    color-mix(in oklab, var(--bg) 60%, transparent)
+  );
+}
+
+/* Over the window's own material there is no page colour to fade into. */
+:root[data-embed="translucent"] .detail-ambient::after {
+  background: none;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 6px 13px 6px 9px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-pill);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 560;
+}
+
+.back:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(20px, 2.4vw, 40px);
+}
+
+@media (min-width: 900px) {
+  .detail-layout {
+    grid-template-columns: clamp(210px, 19vw, 300px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .detail-side {
+    position: sticky;
+    top: calc(var(--topbar-h) + 20px);
+  }
+}
+
+.detail-side {
+  display: grid;
+  gap: 12px;
+  max-width: 300px;
+}
+
+.detail-cover {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  view-transition-name: manga-cover;
+}
+
+.detail-side .button.primary {
+  min-height: 40px;
+  font-size: 0.92rem;
+}
+
+.cover-editor {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.cover-editor form {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.cover-editor input {
+  width: 100%;
+}
+
+.detail-main {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
+.detail-header {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+}
+
+.detail-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.detail-title-row h1,
+.detail-loading-title {
+  max-width: 26ch;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 1.15rem + 2.1vw, 3.1rem);
+  font-weight: 780;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.facts > div {
+  display: grid;
+  gap: 2px;
+  min-width: 108px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--surface) 82%, transparent);
+}
+
+.facts dt {
+  color: var(--text-3);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.facts dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.status-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.tags-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tags-editor .chip {
+  padding-right: 4px;
+  color: var(--text);
+}
+
+.chip-remove {
+  --btn-bg: transparent;
+  --btn-line: transparent;
+  --btn-fg: var(--text-3);
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.chip-remove:hover:not(:disabled) {
+  color: var(--bad);
+}
+
+.chip-remove svg {
+  width: 12px;
+  height: 12px;
+}
+
+.tag-input {
+  width: 150px;
+  min-height: 28px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+}
+
+/* ---- merged titles ---- */
+
+.merged-sources {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.aliases {
+  display: grid;
+  gap: 6px;
+}
+
+.field-label {
+  color: var(--text-3);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.alias-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alias {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font-size: 0.85rem;
+}
+
+.merge-picker {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 460px);
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.merge-picker-head {
+  display: flex;
+  gap: 6px;
+}
+
+.merge-picker-head input {
+  flex: 1;
+  border-radius: var(--radius-pill);
+}
+
+.merge-picker ul {
+  display: grid;
+  gap: 2px;
+  max-height: 340px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.merge-picker .meta {
+  padding: 8px;
+}
+
+.option {
+  --btn-bg: transparent;
+  --btn-line: transparent;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 520;
+  line-height: 1.25;
+  text-align: left;
+  white-space: normal;
+}
+
+.option:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.option-cover {
+  flex: none;
+  width: 26px;
+  height: 39px;
+  border-radius: 5px;
+  font-size: 0.75rem;
+}
+
+/* ---- history ---- */
+
+.history {
+  display: grid;
+  gap: 14px;
+  padding: clamp(16px, 1.6vw, 22px);
+}
+
+.history-days {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-day {
+  display: grid;
+  gap: 6px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
+}
+
+.history-day-label {
+  color: var(--text-3);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.history-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  list-style: none;
+}
+
+.history-row {
+  display: grid;
+  /* The time sits next to the chapter it belongs to; the sites take the
+     rest of the row, pushed to the end beside the link. */
+  grid-template-columns: minmax(7rem, max-content) 4.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 6px 14px;
+  transition: background-color var(--dur-fast);
+}
+
+.history-row + .history-row {
+  border-top: 1px solid var(--line);
+}
+
+.history-row:hover {
+  background: var(--surface-2);
+}
+
+.history-chapter {
+  font-variant-numeric: tabular-nums;
+  font-weight: 620;
+}
+
+.history-time {
+  color: var(--text-3);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-sites {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* ---- footer ---- */
+
+.detail-footer {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 0.9rem;
+}
+
+.danger-zone.confirming {
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--bad) 30%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--bad-soft);
+  color: var(--text);
+}
+
+.technical summary {
+  width: fit-content;
+  color: var(--text-3);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.technical dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+}
+
+.technical dt {
+  color: var(--text-3);
+}
+
+.technical dd {
+  margin: 0;
+}
+
+.detail-loading .detail-main {
+  gap: 16px;
+}

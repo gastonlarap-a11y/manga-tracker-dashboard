@@ -1,0 +1,181 @@
+/*
+ * Design tokens: one set of names, two themes. Dark is the default (what the
+ * window has always been); light follows the system.
+ *
+ * Redefined under prefers-color-scheme rather than written with light-dark(),
+ * which WebKit before 17.5 does not know — on an older macOS that would leave
+ * the page with no colours at all, not merely the wrong ones.
+ *
+ * Contrast, checked: --text-2 and --text-3 stay above WCAG AA's 4.5:1 on every
+ * surface they are written on, in both themes; --on-accent on --accent too.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Type: the system's own faces — SF Pro / SF Pro Rounded on macOS, Segoe UI
+     Variable on Windows. Nothing downloaded, so the app looks native and
+     works with no connection. */
+  --font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text",
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-display:
+    ui-rounded, "SF Pro Rounded", system-ui, -apple-system,
+    "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* Geometry. Radii step so that an inner corner plus its padding is the
+     outer one, which is what keeps nested corners concentric. */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+  --gutter: clamp(16px, 2.6vw, 44px);
+  --page-max: 1840px;
+  --topbar-h: 60px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 420ms;
+
+  /* Dark theme */
+  --bg: oklch(0.165 0.012 270);
+  --bg-glow: oklch(0.26 0.06 285 / 0.55);
+  --surface: oklch(0.215 0.013 270);
+  --surface-2: oklch(0.255 0.016 270);
+  --surface-3: oklch(0.3 0.018 270);
+  --raised: oklch(0.34 0.02 270);
+  --line: oklch(1 0 0 / 0.08);
+  --line-strong: oklch(1 0 0 / 0.15);
+  --text: oklch(0.95 0.008 270);
+  --text-2: oklch(0.77 0.018 270);
+  --text-3: oklch(0.67 0.02 270);
+  --accent: oklch(0.74 0.15 280);
+  --accent-strong: oklch(0.62 0.2 280);
+  --on-accent: oklch(0.17 0.04 280);
+  --accent-soft: oklch(0.74 0.15 280 / 0.16);
+  --good: oklch(0.8 0.15 155);
+  --bad: oklch(0.74 0.16 20);
+  --on-bad: oklch(0.18 0.04 20);
+  --warm: oklch(0.82 0.14 70);
+  --good-soft: oklch(0.8 0.15 155 / 0.14);
+  --bad-soft: oklch(0.74 0.16 20 / 0.15);
+  --warm-soft: oklch(0.82 0.14 70 / 0.15);
+
+  /* Glass: the navigation layer only (bar, toolbar, floating pills). */
+  --glass: oklch(0.2 0.014 270 / 0.62);
+  --glass-strong: oklch(0.21 0.014 270 / 0.8);
+  --glass-line: oklch(1 0 0 / 0.1);
+  --glass-hi: inset 0 1px 0 oklch(1 0 0 / 0.07);
+  --glass-blur: blur(24px) saturate(180%);
+
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-md:
+    0 1px 2px oklch(0 0 0 / 0.3), 0 10px 26px -8px oklch(0 0 0 / 0.5);
+  --shadow-lg:
+    0 2px 6px oklch(0 0 0 / 0.3), 0 26px 50px -14px oklch(0 0 0 / 0.65);
+
+  /* Heatmap, from nothing to the busiest day. */
+  --heat-0: oklch(1 0 0 / 0.07);
+  --heat-1: oklch(0.45 0.1 280);
+  --heat-2: oklch(0.56 0.14 280);
+  --heat-3: oklch(0.68 0.17 282);
+  --heat-4: oklch(0.82 0.15 288);
+
+  --ambient-opacity: 0.6;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: oklch(0.975 0.005 270);
+    --bg-glow: oklch(0.9 0.05 285 / 0.6);
+    --surface: oklch(1 0 0);
+    --surface-2: oklch(0.962 0.006 270);
+    --surface-3: oklch(0.93 0.008 270);
+    --raised: oklch(1 0 0);
+    --line: oklch(0.25 0.02 270 / 0.09);
+    --line-strong: oklch(0.25 0.02 270 / 0.17);
+    --text: oklch(0.2 0.02 270);
+    --text-2: oklch(0.42 0.02 270);
+    --text-3: oklch(0.5 0.02 270);
+    --accent: oklch(0.52 0.2 280);
+    --accent-strong: oklch(0.46 0.21 280);
+    --on-accent: oklch(0.99 0 0);
+    --accent-soft: oklch(0.52 0.2 280 / 0.1);
+    --good: oklch(0.5 0.13 155);
+    --bad: oklch(0.54 0.19 25);
+    --on-bad: oklch(0.99 0 0);
+    --warm: oklch(0.55 0.14 60);
+    --good-soft: oklch(0.6 0.13 155 / 0.12);
+    --bad-soft: oklch(0.6 0.19 25 / 0.1);
+    --warm-soft: oklch(0.72 0.14 70 / 0.18);
+
+    --glass: oklch(0.99 0.003 270 / 0.66);
+    --glass-strong: oklch(0.99 0.003 270 / 0.84);
+    --glass-line: oklch(0.25 0.02 270 / 0.09);
+    --glass-hi: inset 0 1px 0 oklch(1 0 0 / 0.8);
+
+    --shadow-sm: 0 1px 2px oklch(0.2 0.02 270 / 0.08);
+    --shadow-md:
+      0 1px 2px oklch(0.2 0.02 270 / 0.06),
+      0 10px 26px -10px oklch(0.2 0.02 270 / 0.18);
+    --shadow-lg:
+      0 2px 6px oklch(0.2 0.02 270 / 0.06),
+      0 26px 50px -18px oklch(0.2 0.02 270 / 0.28);
+
+    --heat-0: oklch(0.25 0.02 270 / 0.07);
+    --heat-1: oklch(0.86 0.07 280);
+    --heat-2: oklch(0.75 0.12 280);
+    --heat-3: oklch(0.62 0.17 280);
+    --heat-4: oklch(0.5 0.2 280);
+
+    --ambient-opacity: 0.42;
+  }
+}
+
+/*
+ * Inside the macOS app, behind this page is the window's own material
+ * (vibrancy), which already follows the system's light or dark. The page
+ * stops painting a background and its surfaces let some of it through.
+ */
+:root[data-embed="translucent"] {
+  --bg: transparent;
+  --bg-glow: transparent;
+  --surface: oklch(0.215 0.013 270 / 0.74);
+  --surface-2: oklch(0.255 0.016 270 / 0.72);
+  --surface-3: oklch(0.3 0.018 270 / 0.72);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-embed="translucent"] {
+    --surface: oklch(1 0 0 / 0.76);
+    --surface-2: oklch(0.962 0.006 270 / 0.72);
+    --surface-3: oklch(0.93 0.008 270 / 0.72);
+  }
+}
+
+/* Someone who asked the system for less transparency gets solid surfaces —
+   macOS turns its own vibrancy opaque for them in the same breath. */
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  :root[data-embed="translucent"] {
+    --glass: var(--surface-2);
+    --glass-strong: var(--surface-2);
+    --glass-blur: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --line: oklch(0.6 0.02 270 / 0.5);
+    --line-strong: oklch(0.6 0.02 270 / 0.8);
+    --text-2: var(--text);
+    --text-3: var(--text);
+  }
+}

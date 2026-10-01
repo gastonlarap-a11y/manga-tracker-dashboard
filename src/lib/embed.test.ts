@@ -1,12 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type EmbedWindow, installEmbedLinkBridge } from "./embed";
+import {
+  createEmbedStore,
+  type EmbedStore,
+  type EmbedWindow,
+  installEmbedLinkBridge,
+} from "./embed";
 
 const ORIGIN = "http://127.0.0.1:5150";
 
+type Posted = { type: string; url?: string; features?: string[] };
+
 type Harness = {
   target: EmbedWindow;
-  posted: { type: string; url: string }[];
-  greet: () => void;
+  store: EmbedStore;
+  /** Everything posted to the app, in order. */
+  posted: Posted[];
+  /** Only the forwarded links, which is what most tests are about. */
+  opened: () => Posted[];
+  greet: (extra?: Record<string, unknown>) => void;
   clickOn: (href: string) => MouseEvent;
 };
 
@@ -17,15 +28,16 @@ type Harness = {
  * one correctly ignore it.
  */
 function embedded(): Harness {
-  const posted: { type: string; url: string }[] = [];
+  const posted: Posted[] = [];
   let onMessage: ((event: MessageEvent) => void) | null = null;
   const root = document.createElement("div");
   document.body.appendChild(root);
+  const store = createEmbedStore();
 
   const target: EmbedWindow = {
     parent: {
       postMessage: (message: unknown) => {
-        posted.push(message as { type: string; url: string });
+        posted.push(message as Posted);
       },
     },
     location: { origin: ORIGIN },
@@ -34,14 +46,19 @@ function embedded(): Harness {
       onMessage = listener;
     },
   };
-  installEmbedLinkBridge(target);
+  installEmbedLinkBridge(target, store);
 
   return {
     target,
+    store,
     posted,
-    greet: () =>
+    opened: () =>
+      posted.filter(
+        (message) => message.type === "manga-tracker:open-external",
+      ),
+    greet: (extra = {}) =>
       onMessage?.({
-        data: { type: "manga-tracker:embed-hello" },
+        data: { type: "manga-tracker:embed-hello", ...extra },
       } as MessageEvent),
     clickOn: (href) => {
       root.innerHTML = `<a href="${href}">Seguir leyendo</a>`;
@@ -84,12 +101,12 @@ describe("installEmbedLinkBridge", () => {
   });
 
   it("forwards an external link once greeted, and cancels the click", () => {
-    const { posted, greet, clickOn } = embedded();
+    const { opened, greet, clickOn } = embedded();
     greet();
 
     const event = clickOn("https://lectorxd.com/manhua/dragona/leer/56");
 
-    expect(posted).toEqual([
+    expect(opened()).toEqual([
       {
         type: "manga-tracker:open-external",
         url: "https://lectorxd.com/manhua/dragona/leer/56",
@@ -101,35 +118,104 @@ describe("installEmbedLinkBridge", () => {
   });
 
   it("leaves the app's own navigation alone", () => {
-    const { posted, greet, clickOn } = embedded();
+    const { opened, greet, clickOn } = embedded();
     greet();
 
     const event = clickOn(`${ORIGIN}/manga/dragona`);
 
-    expect(posted).toEqual([]);
+    expect(opened()).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
   });
 
   it.each(["mailto:alguien@example.com", "javascript:alert(1)"])(
     "ignores %s",
     (href) => {
-      const { posted, greet, clickOn } = embedded();
+      const { opened, greet, clickOn } = embedded();
       greet();
 
       const event = clickOn(href);
 
-      expect(posted).toEqual([]);
+      expect(opened()).toEqual([]);
       expect(event.defaultPrevented).toBe(false);
     },
   );
 
   it("posts one message per click however often it is greeted", () => {
-    const { posted, greet, clickOn } = embedded();
+    const { opened, greet, clickOn } = embedded();
     greet();
     greet();
 
     clickOn("https://lectorxd.com/manhua/dragona/leer/56");
 
-    expect(posted).toHaveLength(1);
+    expect(opened()).toHaveLength(1);
+  });
+
+  it("answers every greeting with what it can ask the app for", () => {
+    const { posted, greet } = embedded();
+    greet();
+    greet();
+
+    expect(posted).toEqual([
+      { type: "manga-tracker:embed-ready", features: ["settings"] },
+      { type: "manga-tracker:embed-ready", features: ["settings"] },
+    ]);
+  });
+});
+
+describe("the embed store", () => {
+  it("starts standalone, and asks nothing of an app that is not there", () => {
+    const { store, posted } = embedded();
+
+    store.requestSettings();
+
+    expect(store.getSnapshot()).toEqual({ kind: "standalone" });
+    expect(posted).toEqual([]);
+  });
+
+  it("knows it is embedded, and whether the window is translucent", () => {
+    const { store, greet } = embedded();
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    greet({ translucent: true });
+
+    expect(store.getSnapshot()).toEqual({
+      kind: "embedded",
+      translucent: true,
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a greeting without the field as an opaque window", () => {
+    const { store, greet } = embedded();
+
+    greet();
+
+    expect(store.getSnapshot()).toEqual({
+      kind: "embedded",
+      translucent: false,
+    });
+  });
+
+  it("keeps the same snapshot, and stays quiet, when nothing changed", () => {
+    const { store, greet } = embedded();
+    greet();
+    const first = store.getSnapshot();
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    greet();
+
+    expect(store.getSnapshot()).toBe(first);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("asks the app to open its settings once greeted", () => {
+    const { store, posted, greet } = embedded();
+    greet();
+
+    store.requestSettings();
+
+    expect(posted.at(-1)).toEqual({ type: "manga-tracker:open-settings" });
   });
 });

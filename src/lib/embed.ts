@@ -11,13 +11,86 @@
  *
  * In a normal browser `window.parent === window` and none of this runs: the
  * links keep opening tabs exactly as before.
+ *
+ * The same handshake carries the rest of what the window and this page say to
+ * each other: the app has no bar of its own while it shows the dashboard, so
+ * the settings button lives in this page's bar and asks the app to open them.
  */
 
-/** Sent by the embedder once its frame has loaded. Nothing installs before it. */
+/**
+ * Sent by the embedder once its frame has loaded. Nothing installs before it.
+ * `translucent: true` means the window behind this page is the system's own
+ * material (macOS vibrancy), so the page lets it show through.
+ */
 const HELLO = "manga-tracker:embed-hello";
 
 /** Sent back per click, with the URL the person just asked for. */
 const OPEN_EXTERNAL = "manga-tracker:open-external";
+
+/**
+ * The answer to each greeting: what this page can ask the app for. An app that
+ * never receives it is showing a dashboard older than this bridge, and keeps a
+ * way to its settings of its own — this page has no button for them.
+ */
+const READY = "manga-tracker:embed-ready";
+
+/** Sent when the person presses the settings button in this page's bar. */
+const OPEN_SETTINGS = "manga-tracker:open-settings";
+
+export type EmbedState =
+  | { readonly kind: "standalone" }
+  | { readonly kind: "embedded"; readonly translucent: boolean };
+
+type Parent = Pick<Window, "postMessage">;
+
+/**
+ * Whether this page is showing inside the app, for the components that change
+ * because of it. Shaped for `useSyncExternalStore`: the snapshot is the same
+ * object until something actually changes.
+ */
+export interface EmbedStore {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): EmbedState;
+  /** Asks the app to open its settings. Does nothing outside the app. */
+  requestSettings(): void;
+  /** The bridge's half: called on each greeting. */
+  greeted(parent: Parent, translucent: boolean): void;
+}
+
+const STANDALONE: EmbedState = { kind: "standalone" };
+
+export function createEmbedStore(): EmbedStore {
+  let state: EmbedState = STANDALONE;
+  let parent: Parent | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => state,
+    requestSettings() {
+      // "*" for the reason given in installClickForwarder; the message says
+      // only "open your settings", which no page could misuse.
+      parent?.postMessage({ type: OPEN_SETTINGS }, "*");
+    },
+    greeted(to, translucent) {
+      parent = to;
+      if (state.kind === "embedded" && state.translucent === translucent) {
+        return;
+      }
+      state = { kind: "embedded", translucent };
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  };
+}
+
+/** The one this page uses; tests build their own with createEmbedStore. */
+export const embedStore = createEmbedStore();
 
 /** The parts of `window` this needs, so a test can supply them. */
 export type EmbedWindow = {
@@ -47,7 +120,10 @@ export type EmbedWindow = {
  * 2026-10-01, where nothing else can frame it now; Windows still Report-Only.
  * Guessed wrong, it blanks the dashboard inside the app.
  */
-export function installEmbedLinkBridge(target: EmbedWindow = window): void {
+export function installEmbedLinkBridge(
+  target: EmbedWindow = window,
+  store: EmbedStore = embedStore,
+): void {
   if ((target.parent as unknown) === (target as unknown)) {
     return;
   }
@@ -57,7 +133,14 @@ export function installEmbedLinkBridge(target: EmbedWindow = window): void {
   let forwarding = false;
 
   target.addEventListener("message", (event: MessageEvent) => {
-    if (!isHello(event.data) || forwarding) {
+    const hello = helloOf(event.data);
+    if (hello === null) {
+      return;
+    }
+    store.greeted(target.parent, hello.translucent);
+    // Answered every time: the app greets on each load of its frame.
+    target.parent.postMessage({ type: READY, features: ["settings"] }, "*");
+    if (forwarding) {
       return;
     }
     forwarding = true;
@@ -65,12 +148,18 @@ export function installEmbedLinkBridge(target: EmbedWindow = window): void {
   });
 }
 
-function isHello(data: unknown): boolean {
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    (data as { type?: unknown }).type === HELLO
-  );
+function helloOf(data: unknown): { translucent: boolean } | null {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    (data as { type?: unknown }).type !== HELLO
+  ) {
+    return null;
+  }
+  // Absent on an app older than the field, which is an opaque window.
+  return {
+    translucent: (data as { translucent?: unknown }).translucent === true,
+  };
 }
 
 function installClickForwarder(target: EmbedWindow): void {

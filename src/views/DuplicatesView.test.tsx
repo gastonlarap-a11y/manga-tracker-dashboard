@@ -50,9 +50,7 @@ describe("DuplicatesView", () => {
 
     await renderWithProviders(<DuplicatesView />);
 
-    expect(
-      await screen.findByText("Sin duplicados sospechosos."),
-    ).toBeDefined();
+    expect(await screen.findByText("Todo en orden")).toBeDefined();
   });
 
   it("merges the pair into the side the user picked", async () => {

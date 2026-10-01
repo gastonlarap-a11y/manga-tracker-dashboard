@@ -1,6 +1,7 @@
 import type {
   DuplicatePairDto,
   ErrorResponse,
+  LibraryActivityDto,
   LibraryEntryDto,
   MangaDto,
   MangaHistoryDto,
@@ -63,6 +64,16 @@ export function getLibrary(
   }
   const query = params.size > 0 ? `?${params.toString()}` : "";
   return request(`/api/library${query}`);
+}
+
+// The zone is this browser's: the backend counts days as the reader lived
+// them, and it has no way to know which zone that is on its own.
+export function getActivity(
+  timeZone: string,
+  days = 84,
+): Promise<ApiResult<LibraryActivityDto>> {
+  const params = new URLSearchParams({ days: String(days), tz: timeZone });
+  return request(`/api/library/activity?${params.toString()}`);
 }
 
 export function getMangaHistory(

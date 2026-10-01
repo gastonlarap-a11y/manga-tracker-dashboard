@@ -64,6 +64,20 @@ export interface MangaHistoryDto {
   events: HistoryEventDto[];
 }
 
+// GET /api/library/activity: distinct chapters read per calendar day of the
+// reader's time zone, oldest first, every day of the window present (zeros
+// included).
+export interface ActivityDayDto {
+  // `YYYY-MM-DD`, a calendar day in `timeZone` — not an instant.
+  date: string;
+  chapters: number;
+}
+
+export interface LibraryActivityDto {
+  timeZone: string;
+  days: ActivityDayDto[];
+}
+
 export interface UpdateMangaBody {
   canonicalName?: string;
   status?: MangaStatus;
