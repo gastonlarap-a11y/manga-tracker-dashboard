@@ -36,15 +36,16 @@ export type EmbedWindow = {
  *
  * The handshake keeps this inert where nobody asked for it: an embedder that
  * never says hello gets the plain browser behaviour. It is not an access
- * check, and should not be read as one. The greeting's origin is not verified —
- * the packaged app's is `wails://wails/`, and how WebKit and WebView2 present
- * that has never been measured — so any page that frames this dashboard can
- * send it, and then receives the URL of each external link clicked inside its
- * frame. Nothing more: no data from the page, nothing executed.
+ * check, and should not be read as one. The greeting's origin is not verified,
+ * so a page that manages to frame this dashboard can send it, and then
+ * receives the URL of each external link clicked inside its frame. Nothing
+ * more: no data from the page, nothing executed.
  *
- * Closing that belongs to the backend, as a `frame-ancestors` policy naming the
- * app's origins, and only once those have been observed in a real build on
- * both systems. Guessed wrong, it blanks the dashboard inside the app.
+ * Who may frame it is the backend's call, as a `frame-ancestors` policy naming
+ * the app's origins (manga-tracker-api, src/modules/embedding). It is enforced
+ * on each system only once a real build there has been measured: macOS since
+ * 2026-10-01, where nothing else can frame it now; Windows still Report-Only.
+ * Guessed wrong, it blanks the dashboard inside the app.
  */
 export function installEmbedLinkBridge(target: EmbedWindow = window): void {
   if ((target.parent as unknown) === (target as unknown)) {
