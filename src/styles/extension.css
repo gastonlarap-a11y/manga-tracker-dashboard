@@ -2,13 +2,35 @@
 
 .extension-page {
   display: grid;
-  gap: 20px;
-  max-width: 760px;
+  gap: 8px;
 }
 
-.reading-settings {
+/* The settings and the list side by side where both fit at a readable
+   width; one column below that — the app's window can be 900px wide. */
+.extension-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+@media (min-width: 1100px) {
+  .extension-grid {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+/* Each block's padding is its own, as every other page's tiles do. */
+.reading-settings,
+.knowledge {
+  display: grid;
+  align-content: start;
   gap: 18px;
+  padding: clamp(16px, 1.6vw, 22px);
+}
+
+.extension-grid > .skeleton-block {
+  min-height: 220px;
 }
 
 .setting-row {

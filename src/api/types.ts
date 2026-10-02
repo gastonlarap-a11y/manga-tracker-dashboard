@@ -190,6 +190,15 @@ export interface ExtensionConfigDto {
   themes: { name: string }[];
 }
 
+// A calibration made from the extension (GET /api/adapters): which elements of
+// a site hold the title and the chapter. The part this page shows.
+export interface CalibrationDto {
+  domain: string;
+  titleSelector: string;
+  chapterSelector: string | null;
+  updatedAt: string;
+}
+
 // The part of GET /api/site-rules this page shows: every site the backend has
 // something to say about, curated or calibrated on this machine.
 export interface SiteRuleDto {

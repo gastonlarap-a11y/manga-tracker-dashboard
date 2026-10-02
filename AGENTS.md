@@ -23,10 +23,13 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   with colocated `*.test.tsx`, and their parts beside them: `views/library/` (the overview
   bento — continue reading, activity, stats — the floating toolbar and the 2:3 cover grid),
   `views/detail/` (the history grouped by day). `/extension` edits when the browser
-  extension counts a chapter as read ("lectura real", `PUT /api/extension-settings`) and
-  lists what it recognises without a calibration; the extension picks a change up within
-  minutes, at once when its popup opens. A new route is also a path the API's SPA fallback
-  has to list (`src/index.ts` in manga-tracker-api)
+  extension counts a chapter as read ("lectura real", `PUT /api/extension-settings`), lists
+  what it recognises without a calibration, and removes a calibration (`GET`/`DELETE
+  /api/adapters` — a tombstone the sync carries, so it does not come back from another
+  machine); the extension picks a change up within minutes, at once when its popup opens.
+  Its tiles carry their own padding (`.reading-settings`, `.knowledge`), as every page's
+  tiles do — `.tile` has none. A new route is also a path the API's SPA fallback has to list
+  (`src/index.ts` in manga-tracker-api)
 - `src/lib/embed.ts` — the bridge for when the desktop app shows this page in a frame:
   after the app's greeting, external links are posted up instead of opened (Wails
   implements no new-window handler), the greeting is answered with `embed-ready`, and an

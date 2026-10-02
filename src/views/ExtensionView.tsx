@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { Check, Puzzle } from "lucide-react";
+import { BookOpenCheck, Check, Puzzle, X } from "lucide-react";
 import {
   type FormEvent,
   Suspense,
@@ -7,8 +7,12 @@ import {
   useId,
   useState,
 } from "react";
-import { saveExtensionSettings } from "../api/client";
-import type { ExtensionSettingsDto } from "../api/types";
+import {
+  type ApiResult,
+  removeCalibration,
+  saveExtensionSettings,
+} from "../api/client";
+import type { CalibrationDto, ExtensionSettingsDto } from "../api/types";
 import { extensionKnowledgeAtom, extensionSettingsAtom } from "../state/atoms";
 
 // Theme ids as the backend names them, as a person would read them.
@@ -30,16 +34,24 @@ export function ExtensionView() {
           abras su ventanita.
         </p>
       </header>
-      <Suspense
-        fallback={
-          <div className="tile skeleton skeleton-block" aria-hidden="true" />
-        }
-      >
-        <ReadingSettings />
-      </Suspense>
-      <Suspense fallback={null}>
-        <Knowledge />
-      </Suspense>
+      {/* Two columns where there is room for them, the settings first:
+          they are what the page is for, the list beside them is context. */}
+      <div className="extension-grid">
+        <Suspense
+          fallback={
+            <div className="tile skeleton skeleton-block" aria-hidden="true" />
+          }
+        >
+          <ReadingSettings />
+        </Suspense>
+        <Suspense
+          fallback={
+            <div className="tile skeleton skeleton-block" aria-hidden="true" />
+          }
+        >
+          <Knowledge />
+        </Suspense>
+      </div>
     </section>
   );
 }
@@ -104,7 +116,10 @@ function ReadingForm({ saved }: { saved: ExtensionSettingsDto }) {
       onSubmit={(event) => void submit(event)}
     >
       <header className="tile-head">
-        <h2 className="tile-title">Lectura real</h2>
+        <h2 className="tile-title">
+          <BookOpenCheck aria-hidden="true" />
+          Lectura real
+        </h2>
       </header>
       <label className="setting-row" htmlFor={switchId}>
         <span>
@@ -201,21 +216,15 @@ function ReadingForm({ saved }: { saved: ExtensionSettingsDto }) {
 }
 
 function Knowledge() {
-  const { config, rules } = useAtomValue(extensionKnowledgeAtom);
+  const { config, rules, calibrations } = useAtomValue(extensionKnowledgeAtom);
   const themes = config.ok ? config.data.themes : [];
   const curated = rules.ok
     ? rules.data
         .filter((rule) => rule.series !== null)
         .map((rule) => rule.domain)
     : [];
-  const calibrated = rules.ok
-    ? rules.data
-        .filter((rule) => rule.titleSelector !== null)
-        .map((rule) => rule.domain)
-    : [];
-
   return (
-    <section className="tile" aria-labelledby="knowledge-title">
+    <section className="tile knowledge" aria-labelledby="knowledge-title">
       <header className="tile-head">
         <h2 id="knowledge-title" className="tile-title">
           <Puzzle aria-hidden="true" />
@@ -234,13 +243,77 @@ function Knowledge() {
         items={curated}
         empty="Ninguno."
       />
-      <KnowledgeRow
-        label="Calibrados en esta computadora"
-        note="Los que calibraste desde la extensión. Tu calibración siempre gana."
-        items={calibrated}
-        empty="Ninguno todavía."
-      />
+      <CalibrationsRow calibrations={calibrations} />
     </section>
+  );
+}
+
+/**
+ * The calibrations made from the extension, each one removable: a calibration
+ * made on the wrong page (a series page, or picking a heading that holds the
+ * chapter too) records wrong readings until it is gone, and recalibrating was
+ * the only way out.
+ */
+function CalibrationsRow({
+  calibrations,
+}: {
+  calibrations: ApiResult<CalibrationDto[]>;
+}) {
+  const refresh = useSetAtom(extensionKnowledgeAtom);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove(domain: string): Promise<void> {
+    setRemoving(domain);
+    setError(null);
+    const result = await removeCalibration(domain);
+    setRemoving(null);
+    if (!result.ok) {
+      setError(`No se pudo quitar la de ${domain}: ${result.error}`);
+      return;
+    }
+    startTransition(() => refresh());
+  }
+
+  return (
+    <div className="knowledge-row">
+      <span className="field-label">Calibrados</span>
+      {!calibrations.ok ? (
+        <p className="tile-note error" role="alert">
+          No se pudieron leer las calibraciones: {calibrations.error}
+        </p>
+      ) : calibrations.data.length === 0 ? (
+        <p className="tile-note">Ninguno todavía.</p>
+      ) : (
+        <ul className="alias-list">
+          {calibrations.data.map((calibration) => (
+            <li key={calibration.domain} className="alias">
+              <span>{calibration.domain}</span>
+              <button
+                type="button"
+                className="ghost small"
+                disabled={removing !== null}
+                onClick={() => void remove(calibration.domain)}
+                aria-label={`Quitar la calibración de ${calibration.domain}`}
+              >
+                <X aria-hidden="true" />
+                {removing === calibration.domain ? "Quitando…" : "Quitar"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && (
+        <p className="tile-note error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="tile-note">
+        Los que calibraste desde la extensión; ganan sobre todo lo demás.
+        Quitarla vuelve el sitio a la detección automática, acá y en tus otras
+        computadoras al sincronizar.
+      </p>
+    </div>
   );
 }
 
