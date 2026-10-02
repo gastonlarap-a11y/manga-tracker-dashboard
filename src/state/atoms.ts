@@ -2,6 +2,7 @@ import { atom } from "jotai";
 import { atomWithRefresh } from "jotai/utils";
 import {
   getActivity,
+  getCalibrations,
   getDismissals,
   getDuplicates,
   getExtensionConfig,
@@ -114,13 +115,14 @@ export const extensionSettingsAtom = atomWithRefresh(async () =>
 );
 
 /**
- * What the extension already knows without a calibration: the site themes
- * from its config and every site with a rule. Read once per visit.
+ * What the extension already knows: the site themes from its config, every
+ * site with a curated rule, and the calibrations made from the extension.
  */
 export const extensionKnowledgeAtom = atomWithRefresh(async () => {
-  const [config, rules] = await Promise.all([
+  const [config, rules, calibrations] = await Promise.all([
     getExtensionConfig(),
     getSiteRules(),
+    getCalibrations(),
   ]);
-  return { config, rules };
+  return { config, rules, calibrations };
 });

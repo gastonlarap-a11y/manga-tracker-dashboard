@@ -1,4 +1,5 @@
 import type {
+  CalibrationDto,
   DismissalDto,
   DuplicatePairDto,
   ErrorResponse,
@@ -215,4 +216,16 @@ export function getExtensionConfig(): Promise<ApiResult<ExtensionConfigDto>> {
 
 export function getSiteRules(): Promise<ApiResult<SiteRuleDto[]>> {
   return request("/api/site-rules");
+}
+
+export function getCalibrations(): Promise<ApiResult<CalibrationDto[]>> {
+  return request("/api/adapters");
+}
+
+// Takes a calibration back, here and on every machine after the next sync;
+// the site goes back to its curated rule and the generic detection.
+export function removeCalibration(domain: string): Promise<ApiResult<null>> {
+  return request(`/api/adapters/${encodeURIComponent(domain)}`, {
+    method: "DELETE",
+  });
 }
