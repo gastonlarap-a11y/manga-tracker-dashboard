@@ -2,6 +2,8 @@ import type {
   DismissalDto,
   DuplicatePairDto,
   ErrorResponse,
+  ExtensionConfigDto,
+  ExtensionSettingsDto,
   LibraryActivityDto,
   LibraryPageDto,
   LibraryPageQuery,
@@ -9,6 +11,7 @@ import type {
   MangaDto,
   MangaHistoryDto,
   MergeResultDto,
+  SiteRuleDto,
   SyncResultDto,
   SyncStatusDto,
   UpdateMangaBody,
@@ -186,4 +189,30 @@ export function getSyncStatus(): Promise<ApiResult<SyncStatusDto>> {
 // "sync now" that left the artwork behind would look broken.
 export function syncNow(): Promise<ApiResult<SyncResultDto>> {
   return request("/api/sync/now?covers=true", { method: "POST" });
+}
+
+export function getExtensionSettings(): Promise<
+  ApiResult<ExtensionSettingsDto>
+> {
+  return request("/api/extension-settings");
+}
+
+// Replaces all three values; the extension picks them up within minutes, and
+// at once the next time its popup is opened.
+export function saveExtensionSettings(
+  settings: ExtensionSettingsDto,
+): Promise<ApiResult<ExtensionSettingsDto>> {
+  return request("/api/extension-settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
+export function getExtensionConfig(): Promise<ApiResult<ExtensionConfigDto>> {
+  return request("/api/extension-config");
+}
+
+export function getSiteRules(): Promise<ApiResult<SiteRuleDto[]>> {
+  return request("/api/site-rules");
 }

@@ -175,6 +175,29 @@ export interface SyncStatusDto {
   lastError: { message: string; at: string } | null;
 }
 
+// When the browser extension counts a chapter as read (GET/PUT
+// /api/extension-settings). Local to this machine; never synced.
+export interface ExtensionSettingsDto {
+  readingRequired: boolean;
+  readMinSeconds: number;
+  readMinScrollPercent: number;
+}
+
+// The part of GET /api/extension-config this page shows: which site themes the
+// extension recognises without a calibration.
+export interface ExtensionConfigDto {
+  minExtensionVersion: string;
+  themes: { name: string }[];
+}
+
+// The part of GET /api/site-rules this page shows: every site the backend has
+// something to say about, curated or calibrated on this machine.
+export interface SiteRuleDto {
+  domain: string;
+  series: unknown | null;
+  titleSelector: string | null;
+}
+
 export interface ErrorResponse {
   error: string;
 }

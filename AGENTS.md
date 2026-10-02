@@ -11,17 +11,22 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   (`ApiResult<T>` fetch wrapper; relative paths, same-origin)
 - `src/state/atoms.ts` — Jotai: the grid's query (sort, status tab, search, site, period,
   tags — **all applied by the server**), `atomWithRefresh` data atoms (the summary behind the
-  stats, counts and filter options; the continue-reading page; activity; duplicates; sync),
+  stats, counts and filter options; the continue-reading page; activity; duplicates; sync;
+  the extension's settings and what it knows),
   `libraryRevisionAtom` and `refreshLibraryAtom`, the one action every mutation calls
 - `src/state/libraryPages.ts` — the grid's pages, in the store: a new query reads its first
   page, a new revision re-reads every card already held, the newest request always wins
 - `src/App.tsx` — a **data router** (`createBrowserRouter`, `RouterProvider` from
   `react-router/dom`): `viewTransition` links and `<ScrollRestoration>` exist only there.
   The library is passed to `Layout`, which keeps it alive (see Rules); its route is empty
-- `src/views/` — one component per route (`/`, `/manga/:id`, `/duplicates`) with
-  colocated `*.test.tsx`, and their parts beside them: `views/library/` (the overview bento
-  — continue reading, activity, stats — the floating toolbar and the 2:3 cover grid),
-  `views/detail/` (the history grouped by day)
+- `src/views/` — one component per route (`/`, `/manga/:id`, `/duplicates`, `/extension`)
+  with colocated `*.test.tsx`, and their parts beside them: `views/library/` (the overview
+  bento — continue reading, activity, stats — the floating toolbar and the 2:3 cover grid),
+  `views/detail/` (the history grouped by day). `/extension` edits when the browser
+  extension counts a chapter as read ("lectura real", `PUT /api/extension-settings`) and
+  lists what it recognises without a calibration; the extension picks a change up within
+  minutes, at once when its popup opens. A new route is also a path the API's SPA fallback
+  has to list (`src/index.ts` in manga-tracker-api)
 - `src/lib/embed.ts` — the bridge for when the desktop app shows this page in a frame:
   after the app's greeting, external links are posted up instead of opened (Wails
   implements no new-window handler), the greeting is answered with `embed-ready`, and an

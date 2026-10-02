@@ -1,0 +1,157 @@
+/* Extensión: the browser extension's settings and what it already knows. */
+
+.extension-page {
+  display: grid;
+  gap: 20px;
+  max-width: 760px;
+}
+
+.reading-settings {
+  display: grid;
+  gap: 18px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  cursor: pointer;
+}
+
+.setting-row > span {
+  display: grid;
+  gap: 4px;
+}
+
+.setting-label {
+  font-weight: 620;
+}
+
+.switch {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  margin: 2px 0 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform var(--dur) var(--ease-spring);
+}
+
+.switch:checked {
+  background: var(--accent);
+}
+
+.switch:checked::after {
+  background: var(--on-accent);
+  transform: translateX(18px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.reading-thresholds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  transition: opacity var(--dur-fast);
+}
+
+.reading-thresholds:disabled {
+  opacity: 0.5;
+}
+
+.reading-thresholds > label {
+  display: grid;
+  gap: 6px;
+}
+
+.reading-thresholds > .tile-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.number-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.number-field input {
+  width: 92px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.number-field input:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.unit {
+  color: var(--text-3);
+  font-size: 0.875rem;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--good);
+  font-weight: 600;
+}
+
+.saved svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.knowledge-row {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.knowledge-row:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.knowledge-row .tile-note {
+  margin: 0;
+}
