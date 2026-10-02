@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { Layout } from "./components/Layout";
 import { DuplicatesView } from "./views/DuplicatesView";
+import { ExtensionView } from "./views/ExtensionView";
 import { LibraryView } from "./views/LibraryView";
 import { MangaDetailView } from "./views/MangaDetailView";
 
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
       { index: true, element: null },
       { path: "manga/:id", element: <MangaDetailView /> },
       { path: "duplicates", element: <DuplicatesView /> },
+      { path: "extension", element: <ExtensionView /> },
       {
         path: "*",
         element: <p className="status">Página no encontrada.</p>,

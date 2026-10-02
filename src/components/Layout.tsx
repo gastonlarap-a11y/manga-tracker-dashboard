@@ -1,4 +1,4 @@
-import { BookOpen, Combine, LibraryBig } from "lucide-react";
+import { BookOpen, Combine, LibraryBig, Puzzle } from "lucide-react";
 import { Activity, type ReactNode } from "react";
 import {
   type Location,
@@ -61,6 +61,10 @@ export function Layout({ library }: { library: ReactNode }) {
             <NavLink to="/duplicates">
               <Combine aria-hidden="true" />
               Duplicados
+            </NavLink>
+            <NavLink to="/extension">
+              <Puzzle aria-hidden="true" />
+              Extensión
             </NavLink>
           </nav>
           <span className="badges">

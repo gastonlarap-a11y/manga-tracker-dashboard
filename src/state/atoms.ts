@@ -4,8 +4,11 @@ import {
   getActivity,
   getDismissals,
   getDuplicates,
+  getExtensionConfig,
+  getExtensionSettings,
   getLibraryPage,
   getLibrarySummary,
+  getSiteRules,
   getSyncStatus,
 } from "../api/client";
 import type { LibrarySort, MangaStatus } from "../api/types";
@@ -104,3 +107,20 @@ export const dismissalsAtom = atomWithRefresh(async () => getDismissals());
 // SSE signal as the data, because a sync that pulls something from another
 // machine publishes exactly that event.
 export const syncStatusAtom = atomWithRefresh(async () => getSyncStatus());
+
+/** When the browser extension counts a chapter as read. */
+export const extensionSettingsAtom = atomWithRefresh(async () =>
+  getExtensionSettings(),
+);
+
+/**
+ * What the extension already knows without a calibration: the site themes
+ * from its config and every site with a rule. Read once per visit.
+ */
+export const extensionKnowledgeAtom = atomWithRefresh(async () => {
+  const [config, rules] = await Promise.all([
+    getExtensionConfig(),
+    getSiteRules(),
+  ]);
+  return { config, rules };
+});
