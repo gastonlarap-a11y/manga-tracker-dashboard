@@ -2,6 +2,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { unwrap } from "jotai/utils";
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
+import { STATUS_NAMES, STATUSES } from "../../components/statusNames";
 import {
   domainFilterAtom,
   type LibrarySort,
@@ -23,24 +24,27 @@ const SINCE_OPTIONS = [
 ];
 
 const STATUS_TABS: { value: StatusTab; label: string }[] = [
-  { value: "reading", label: "Leyendo" },
-  { value: "completed", label: "Terminados" },
-  { value: "dropped", label: "Abandonados" },
+  ...STATUSES.map((status) => ({
+    value: status,
+    label: STATUS_NAMES[status].many,
+  })),
   { value: "all", label: "Todos" },
 ];
 
-const SORTS: { value: LibrarySort; label: string }[] = [
-  { value: "recent", label: "Recientes" },
-  { value: "title", label: "A–Z" },
-  { value: "chapters", label: "Más capítulos" },
-];
+// A Record, so a sort the API gains is a type error here until it has a name.
+const SORTS: Record<LibrarySort, string> = {
+  recent: "Recientes",
+  oldest: "Menos recientes",
+  title: "A–Z",
+  chapters: "Más capítulos",
+};
 
 // unwrap() keeps the toolbar from suspending: no options or counts while the
 // summary loads, and the previous ones while it reloads.
 const summaryAtom = unwrap(librarySummaryAtom, (previous) => previous ?? null);
 
 function isSort(value: string): value is LibrarySort {
-  return SORTS.some((sort) => sort.value === value);
+  return Object.hasOwn(SORTS, value);
 }
 
 /**
@@ -156,9 +160,9 @@ export function LibraryToolbar() {
                 }
               }}
             >
-              {SORTS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {Object.entries(SORTS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>

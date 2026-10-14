@@ -1,4 +1,4 @@
-import { BookOpen, Combine, LibraryBig, Puzzle } from "lucide-react";
+import { BookOpen, Combine, Hourglass, LibraryBig, Puzzle } from "lucide-react";
 import { Activity, type ReactNode } from "react";
 import {
   type Location,
@@ -53,18 +53,24 @@ export function Layout({ library }: { library: ReactNode }) {
           {/* No view transition between sections: it delayed the page it
               led to by its whole duration, and the library is kept alive
               precisely so that it can appear at once. */}
+          {/* The labels stay the links' names when a phone-wide window
+              shows only the icons (.nav-label in layout.css). */}
           <nav className="nav" aria-label="Secciones">
-            <NavLink to="/" end>
+            <NavLink to="/" end title="Biblioteca">
               <LibraryBig aria-hidden="true" />
-              Biblioteca
+              <span className="nav-label">Biblioteca</span>
             </NavLink>
-            <NavLink to="/duplicates">
+            <NavLink to="/follow-up" title="Seguimiento">
+              <Hourglass aria-hidden="true" />
+              <span className="nav-label">Seguimiento</span>
+            </NavLink>
+            <NavLink to="/duplicates" title="Duplicados">
               <Combine aria-hidden="true" />
-              Duplicados
+              <span className="nav-label">Duplicados</span>
             </NavLink>
-            <NavLink to="/extension">
+            <NavLink to="/extension" title="Extensión">
               <Puzzle aria-hidden="true" />
-              Extensión
+              <span className="nav-label">Extensión</span>
             </NavLink>
           </nav>
           <span className="badges">

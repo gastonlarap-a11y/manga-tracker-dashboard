@@ -72,6 +72,7 @@ export function getLibraryPage(
     q: query.q?.trim(),
     domain: query.domain,
     since: query.since,
+    before: query.before,
     tags: query.tags?.length ? query.tags.join(",") : undefined,
   })) {
     if (value) {
@@ -82,8 +83,18 @@ export function getLibraryPage(
   return request(`/api/library/page${search}`);
 }
 
-export function getLibrarySummary(): Promise<ApiResult<LibrarySummaryDto>> {
-  return request("/api/library/summary");
+/**
+ * `staleBefore` (an ISO instant) also asks how many series in reading were
+ * last read before then — the count beside the follow-up list.
+ */
+export function getLibrarySummary(
+  query: { staleBefore?: string } = {},
+): Promise<ApiResult<LibrarySummaryDto>> {
+  const search =
+    query.staleBefore === undefined
+      ? ""
+      : `?${new URLSearchParams({ staleBefore: query.staleBefore }).toString()}`;
+  return request(`/api/library/summary${search}`);
 }
 
 // The zone is this browser's: the backend counts days as the reader lived

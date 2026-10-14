@@ -13,6 +13,7 @@ import {
   getSyncStatus,
 } from "../api/client";
 import type { LibrarySort, MangaStatus } from "../api/types";
+import { instantDaysBefore } from "../lib/dates";
 
 export type { LibrarySort };
 
@@ -40,6 +41,8 @@ export interface GridQuery {
   readonly q?: string;
   readonly domain?: string;
   readonly sinceDays?: number;
+  /** Only cards read at least once, last more than this many days ago. */
+  readonly beforeDays?: number;
   readonly tags: readonly string[];
 }
 
@@ -58,6 +61,34 @@ export const gridQueryAtom = atom((get): GridQuery => {
   };
 });
 
+/**
+ * How long a series in reading goes unread before the follow-up list shows
+ * it. Shared, not the view's own: the count beside "En lectura" says the same
+ * window the list does.
+ */
+export const staleDaysAtom = atom(90);
+
+/**
+ * The follow-up list's two halves. "stale": in reading and not read for
+ * `staleDaysAtom`, the most forgotten first. "on_hold": paused, the most
+ * recently read first — reading one again does not unpause it, so the ones
+ * picked back up rise to the top here.
+ */
+export type FollowUpTab = "stale" | "on_hold";
+export const followUpTabAtom = atom<FollowUpTab>("stale");
+
+export const followUpQueryAtom = atom(
+  (get): GridQuery =>
+    get(followUpTabAtom) === "stale"
+      ? {
+          sort: "oldest",
+          status: "reading",
+          beforeDays: get(staleDaysAtom),
+          tags: [],
+        }
+      : { sort: "recent", status: "on_hold", tags: [] },
+);
+
 // SSE connection state, owned by LiveRefresh and shown by ConnectionBadge.
 export type LiveStatus = "connecting" | "live" | "offline";
 export const liveStatusAtom = atom<LiveStatus>("connecting");
@@ -72,9 +103,12 @@ export const libraryRevisionAtom = atom(0);
 // atomWithRefresh: writing to the atom re-runs the fetch (used by LiveRefresh
 // and after mutations).
 
-/** The totals, the counts per tab and the filter options, without the cards. */
-export const librarySummaryAtom = atomWithRefresh(async () =>
-  getLibrarySummary(),
+/**
+ * The totals, the counts per tab and the filter options, without the cards —
+ * and how many series in reading went unread for the follow-up window.
+ */
+export const librarySummaryAtom = atomWithRefresh(async (get) =>
+  getLibrarySummary({ staleBefore: instantDaysBefore(get(staleDaysAtom)) }),
 );
 
 /** The hero and the recents beside it: the next card is the hero's runner-up. */

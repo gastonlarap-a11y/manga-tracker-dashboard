@@ -118,8 +118,14 @@
 
 .detail-header {
   display: grid;
+  /* Not the implicit auto track, which grows to the status picker's width. */
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: 16px;
+}
+
+.status-picker {
+  max-width: 100%;
 }
 
 .detail-title-row {

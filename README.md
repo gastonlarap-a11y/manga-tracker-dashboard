@@ -28,18 +28,25 @@ bun run dev
 ## Views
 
 - `/` — library as a grid of cover cards (reached chapter, last activity, "continue
-  reading" link) with search, status tabs (reading/completed/dropped), tag filter, domain
-  and recency filters, and library stats. Refreshes live over SSE
+  reading" link) with search, status tabs (reading/on hold/completed/dropped), tag filter,
+  domain and recency filters, an order by least recently read, and library stats — the
+  count in reading links to the series gone quiet. Refreshes live over SSE
   (`GET /api/events/stream`) whenever the extension records a reading. Covers load
   through the API proxy (`GET /api/mangas/:id/cover`), which defeats CDN hotlink
   protection; a deterministic gradient stands in when there is no cover.
 - `/manga/:id` — full reading history plus the manual curation: inline rename, reading
   status, tags, cover URL (`PUT /api/mangas/:id`) and delete with confirmation
   (`DELETE /api/mangas/:id`, the only destructive action).
+- `/follow-up` — Seguimiento: the series in reading not read for a window you pick (two
+  weeks to a year, three months by default), the most forgotten first, and the series on
+  hold, the most recently read first. Each one is paused, resumed, finished or dropped in
+  one click, or opened at its last chapter.
 - `/duplicates` — suspected duplicate pairs: merge a pair into one card
   (`POST /api/duplicates/merge`, undone from the manga's page with unmerge), or dismiss
   one that is not the same series. Nothing merges on its own — events are append-only,
   and merging groups the cards without rewriting them.
+- `/extension` — when the browser extension counts a chapter as read, what it recognises
+  without a calibration, and removing a calibration.
 
 ## Commands
 

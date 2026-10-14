@@ -31,6 +31,17 @@ export function formatDate(iso: string): string {
   return absoluteFormatter.format(new Date(iso));
 }
 
+/**
+ * The instant `days` whole days of 24 h before `now`, as the API takes it. A
+ * window of days, not calendar days: "not read in a month" needs no zone.
+ */
+export function instantDaysBefore(
+  days: number,
+  now: number = Date.now(),
+): string {
+  return new Date(now - days * 24 * 3_600_000).toISOString();
+}
+
 const timeFormatter = new Intl.DateTimeFormat("es", {
   hour: "2-digit",
   minute: "2-digit",

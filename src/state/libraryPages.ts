@@ -1,16 +1,20 @@
-import { atom } from "jotai";
+import { type Atom, atom, type PrimitiveAtom, type WritableAtom } from "jotai";
 import { getLibraryPage } from "../api/client";
 import type { LibraryEntryDto, LibraryPageQuery } from "../api/types";
-import { type GridQuery, gridQueryAtom, libraryRevisionAtom } from "./atoms";
+import { instantDaysBefore } from "../lib/dates";
+import {
+  followUpQueryAtom,
+  type GridQuery,
+  gridQueryAtom,
+  libraryRevisionAtom,
+} from "./atoms";
 
 /** Cards per request: a few screens of the grid at any window size. */
 export const PAGE_SIZE = 60;
 /** The most the API returns in one page. */
 const MAX_PAGE = 200;
 
-const DAY_MS = 86_400_000;
-
-/** The pages of the grid read so far, and what they are an answer to. */
+/** The pages of a list read so far, and what they are an answer to. */
 export interface LibraryPages {
   /** The query these pages answer, as a key: another one starts over. */
   readonly key: string;
@@ -24,20 +28,11 @@ export interface LibraryPages {
   readonly error: string | null;
 }
 
-/**
- * In the store rather than in the grid's own state, so leaving the library and
- * coming back — or any remount — finds the pages already read instead of
- * starting from an empty grid.
- */
-export const libraryPagesAtom = atom<LibraryPages | null>(null);
-
 export function queryKey(query: GridQuery): string {
   return JSON.stringify(query);
 }
 
-export const gridQueryKeyAtom = atom((get) => queryKey(get(gridQueryAtom)));
-
-/** The API's form of a grid query. `since` is an instant, taken now. */
+/** The API's form of a list's query. `since` and `before` are instants, taken now. */
 export function toPageQuery(
   query: GridQuery,
   now: number = Date.now(),
@@ -50,7 +45,11 @@ export function toPageQuery(
     since:
       query.sinceDays === undefined
         ? undefined
-        : new Date(now - query.sinceDays * DAY_MS).toISOString(),
+        : instantDaysBefore(query.sinceDays, now),
+    before:
+      query.beforeDays === undefined
+        ? undefined
+        : instantDaysBefore(query.beforeDays, now),
     tags: [...query.tags],
   };
 }
@@ -95,103 +94,142 @@ async function readFromStart(
   return { ok: true, items, nextCursor: cursor ?? null };
 }
 
-// Each request takes a number; only the newest one may write its answer. A
-// search typed while a page loads must not be overwritten by the old page.
-let newestRequest = 0;
+/** A list of cards read a page at a time, following its query and the revision. */
+export interface PagedList {
+  /**
+   * In the store rather than in a component's own state, so leaving the list
+   * and coming back — or any remount — finds the pages already read instead of
+   * starting from nothing.
+   */
+  readonly pagesAtom: PrimitiveAtom<LibraryPages | null>;
+  readonly keyAtom: Atom<string>;
+  /**
+   * Brings the pages up to date with the current query and revision: a new
+   * query reads its first page, a new revision re-reads every card already
+   * held — so the list neither shrinks nor jumps under someone scrolled deep
+   * into it — and pages that are current are left alone.
+   */
+  readonly syncAtom: WritableAtom<null, [], Promise<void>>;
+  /** The next page of the current query, after the cards already held. */
+  readonly loadMoreAtom: WritableAtom<null, [], Promise<void>>;
+}
 
 /**
- * Brings the pages up to date with the current query and revision: a new
- * query reads its first page, a new revision re-reads every card already
- * held — so the grid neither shrinks nor jumps under someone scrolled deep
- * into it — and pages that are current are left alone.
+ * One paged list over `queryAtom`. A factory because the grid and the
+ * follow-up list need exactly the same behaviour, each with its own pages and
+ * its own idea of which request is the newest.
  */
-export const syncLibraryPagesAtom = atom(null, async (get, set) => {
-  const query = get(gridQueryAtom);
-  const key = queryKey(query);
-  const revision = get(libraryRevisionAtom);
-  const held = get(libraryPagesAtom);
-  const sameQuery = held !== null && held.key === key;
-  if (sameQuery && held.revision === revision && held.error === null) {
-    return;
-  }
+export function createPagedList(queryAtom: Atom<GridQuery>): PagedList {
+  const pagesAtom = atom<LibraryPages | null>(null);
+  const keyAtom = atom((get) => queryKey(get(queryAtom)));
 
-  const request = ++newestRequest;
-  set(
-    libraryPagesAtom,
-    held === null
-      ? {
-          key,
-          query,
-          revision,
-          items: [],
-          nextCursor: null,
-          loading: true,
-          error: null,
-        }
-      : { ...held, loading: true },
-  );
-  const wanted = sameQuery ? Math.max(PAGE_SIZE, held.items.length) : PAGE_SIZE;
-  const result = await readFromStart(query, wanted);
-  if (request !== newestRequest) {
-    return;
-  }
-  set(
-    libraryPagesAtom,
-    result.ok
-      ? {
-          key,
-          query,
-          revision,
-          items: result.items,
-          nextCursor: result.nextCursor,
-          loading: false,
-          error: null,
-        }
-      : {
-          key,
-          query,
-          revision,
-          // A refresh that failed keeps what was on screen; a new query that
-          // failed has nothing of its own to show.
-          items: sameQuery ? held.items : [],
-          nextCursor: sameQuery ? held.nextCursor : null,
-          loading: false,
-          error: result.error,
-        },
-  );
-});
+  // Each request takes a number; only the newest one may write its answer. A
+  // search typed while a page loads must not be overwritten by the old page.
+  // Per list: one list's request must never discard the other's answer.
+  let newestRequest = 0;
 
-/** The next page of the current query, after the cards already held. */
-export const loadMoreLibraryAtom = atom(null, async (get, set) => {
-  const held = get(libraryPagesAtom);
-  if (
-    held === null ||
-    held.loading ||
-    held.nextCursor === null ||
-    held.key !== get(gridQueryKeyAtom)
-  ) {
-    return;
-  }
-  const request = ++newestRequest;
-  set(libraryPagesAtom, { ...held, loading: true });
-  const result = await getLibraryPage({
-    ...toPageQuery(held.query),
-    limit: PAGE_SIZE,
-    cursor: held.nextCursor,
+  const syncAtom = atom(null, async (get, set) => {
+    const query = get(queryAtom);
+    const key = queryKey(query);
+    const revision = get(libraryRevisionAtom);
+    const held = get(pagesAtom);
+    const sameQuery = held !== null && held.key === key;
+    if (sameQuery && held.revision === revision && held.error === null) {
+      return;
+    }
+
+    const request = ++newestRequest;
+    set(
+      pagesAtom,
+      held === null
+        ? {
+            key,
+            query,
+            revision,
+            items: [],
+            nextCursor: null,
+            loading: true,
+            error: null,
+          }
+        : { ...held, loading: true },
+    );
+    const wanted = sameQuery
+      ? Math.max(PAGE_SIZE, held.items.length)
+      : PAGE_SIZE;
+    const result = await readFromStart(query, wanted);
+    if (request !== newestRequest) {
+      return;
+    }
+    set(
+      pagesAtom,
+      result.ok
+        ? {
+            key,
+            query,
+            revision,
+            items: result.items,
+            nextCursor: result.nextCursor,
+            loading: false,
+            error: null,
+          }
+        : {
+            key,
+            query,
+            revision,
+            // A refresh that failed keeps what was on screen; a new query that
+            // failed has nothing of its own to show.
+            items: sameQuery ? held.items : [],
+            nextCursor: sameQuery ? held.nextCursor : null,
+            loading: false,
+            error: result.error,
+          },
+    );
   });
-  if (request !== newestRequest) {
-    return;
-  }
-  set(
-    libraryPagesAtom,
-    result.ok
-      ? {
-          ...held,
-          items: appendPage(held.items, result.data.items),
-          nextCursor: result.data.nextCursor,
-          loading: false,
-          error: null,
-        }
-      : { ...held, loading: false, error: result.error },
-  );
-});
+
+  const loadMoreAtom = atom(null, async (get, set) => {
+    const held = get(pagesAtom);
+    if (
+      held === null ||
+      held.loading ||
+      held.nextCursor === null ||
+      held.key !== get(keyAtom)
+    ) {
+      return;
+    }
+    const request = ++newestRequest;
+    set(pagesAtom, { ...held, loading: true });
+    const result = await getLibraryPage({
+      ...toPageQuery(held.query),
+      limit: PAGE_SIZE,
+      cursor: held.nextCursor,
+    });
+    if (request !== newestRequest) {
+      return;
+    }
+    set(
+      pagesAtom,
+      result.ok
+        ? {
+            ...held,
+            items: appendPage(held.items, result.data.items),
+            nextCursor: result.data.nextCursor,
+            loading: false,
+            error: null,
+          }
+        : { ...held, loading: false, error: result.error },
+    );
+  });
+
+  return { pagesAtom, keyAtom, syncAtom, loadMoreAtom };
+}
+
+/** The library's grid. */
+export const {
+  pagesAtom: libraryPagesAtom,
+  keyAtom: gridQueryKeyAtom,
+  syncAtom: syncLibraryPagesAtom,
+  loadMoreAtom: loadMoreLibraryAtom,
+} = createPagedList(gridQueryAtom);
+
+/** The follow-up list: series gone quiet, and series on hold. */
+export const followUpPages = createPagedList(followUpQueryAtom);

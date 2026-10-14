@@ -90,8 +90,54 @@ describe("LibraryView", () => {
     expect(
       await screen.findByRole("button", { name: "Leyendo 1" }),
     ).toBeDefined();
+    expect(screen.getByRole("button", { name: "En pausa 0" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Terminados 1" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Todos 2" })).toBeDefined();
+  });
+
+  it("labels a paused card under Todos, and lists it under En pausa", async () => {
+    serve([
+      reading,
+      libraryEntry({ id: "m3", canonicalName: "Berserk", status: "on_hold" }),
+    ]);
+    await renderWithProviders(<LibraryView />);
+    await grid();
+
+    await actAsync(() => {
+      fireEvent.click(screen.getByRole("button", { name: /^Todos/ }));
+    });
+    const card = (await grid()).getByText("Berserk").closest("li");
+    expect(card?.querySelector(".card-status")?.textContent).toBe("En pausa");
+
+    await actAsync(() => {
+      fireEvent.click(screen.getByRole("button", { name: /^En pausa/ }));
+    });
+    await waitFor(async () =>
+      expect((await grid()).queryByText("One Piece")).toBeNull(),
+    );
+    expect((await grid()).getByText("Berserk")).toBeDefined();
+  });
+
+  it("links the series gone quiet to Seguimiento", async () => {
+    serve([
+      reading,
+      libraryEntry({
+        id: "m3",
+        canonicalName: "Olvidada",
+        lastActivity: {
+          readAt: new Date(Date.now() - 400 * 86_400_000).toISOString(),
+          chapterLabel: "Cap. 3",
+        },
+      }),
+    ]);
+    await renderWithProviders(<LibraryView />);
+    await grid();
+
+    const link = await screen.findByRole("link", {
+      name: /sin leer hace más de 3 meses/,
+    });
+    expect(link.textContent).toMatch(/^1 sin leer/);
+    expect(link.getAttribute("href")).toBe("/follow-up");
   });
 
   it("asks the server to search once the typing pauses", async () => {
@@ -220,6 +266,47 @@ describe("LibraryView", () => {
       .filter((link) => link.getAttribute("href")?.startsWith("/manga/"))
       .map((link) => link.textContent);
     expect(titles).toEqual(["Ásura", "Zetman"]);
+  });
+
+  it("sorts the grid least recently read first when asked", async () => {
+    const readAt = (day: number) => ({
+      readAt: new Date(Date.UTC(2026, 6, day)).toISOString(),
+      chapterLabel: "Cap. 1",
+    });
+    serve([
+      libraryEntry({
+        id: "n",
+        canonicalName: "Nueva",
+        lastActivity: readAt(9),
+      }),
+      libraryEntry({
+        id: "v",
+        canonicalName: "Vieja",
+        lastActivity: readAt(1),
+      }),
+    ]);
+    await renderWithProviders(<LibraryView />);
+    await grid();
+
+    await actAsync(() => {
+      fireEvent.change(screen.getByLabelText(/Orden/), {
+        target: { value: "oldest" },
+      });
+    });
+
+    await waitFor(async () => {
+      const titles = (await grid())
+        .getAllByRole("link")
+        .filter((link) => link.getAttribute("href")?.startsWith("/manga/"))
+        .map((link) => link.textContent);
+      expect(titles).toEqual(["Vieja", "Nueva"]);
+    });
+    expect(
+      requested().some((url) => url.searchParams.get("sort") === "oldest"),
+    ).toBe(true);
+    expect(
+      screen.getByRole("option", { name: "Menos recientes" }),
+    ).toBeDefined();
   });
 
   it("gives each card one link, named after its manga", async () => {

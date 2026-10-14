@@ -162,3 +162,21 @@
     display: none;
   }
 }
+
+/* Four sections do not fit a phone's width with their names: the icons stay,
+   and each name stays the link's accessible name (and its tooltip). */
+@media (max-width: 560px) {
+  .nav a {
+    padding: 0 10px;
+  }
+
+  .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}

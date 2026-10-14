@@ -7,6 +7,7 @@ import type {
   LibraryEntryDto,
   LibrarySummaryDto,
   MangaDto,
+  MangaStatus,
 } from "./api/types";
 
 // React 19 requires awaiting `act` when a component suspends during render
@@ -92,15 +93,30 @@ export function fakeLibraryApi(
     if (url.pathname === "/api/library/activity") {
       return Promise.resolve(jsonResponse(activity));
     }
+    const lastRead = (entry: LibraryEntryDto) =>
+      entry.lastActivity === null ? 0 : Date.parse(entry.lastActivity.readAt);
+    // Read at least once, last before then — what the API's `before` means.
+    const quietSince = (entry: LibraryEntryDto, instant: string) =>
+      lastRead(entry) > 0 && lastRead(entry) < Date.parse(instant);
+    const withStatus = (status: MangaStatus) =>
+      entries.filter((entry) => entry.status === status).length;
     if (url.pathname === "/api/library/summary") {
+      const staleBefore = url.searchParams.get("staleBefore");
       const summary: LibrarySummaryDto = {
         counts: {
-          reading: entries.filter((entry) => entry.status === "reading").length,
-          completed: entries.filter((entry) => entry.status === "completed")
-            .length,
-          dropped: entries.filter((entry) => entry.status === "dropped").length,
+          reading: withStatus("reading"),
+          on_hold: withStatus("on_hold"),
+          completed: withStatus("completed"),
+          dropped: withStatus("dropped"),
           all: entries.length,
         },
+        stale:
+          staleBefore === null
+            ? null
+            : entries.filter(
+                (entry) =>
+                  entry.status === "reading" && quietSince(entry, staleBefore),
+              ).length,
         chapters: entries.reduce((sum, entry) => sum + entry.readCount, 0),
         sites: new Set(entries.flatMap((entry) => entry.sourceDomains)).size,
         activeThisWeek: entries.filter(
@@ -123,9 +139,8 @@ export function fakeLibraryApi(
     const q = searchKey(params.get("q") ?? "");
     const domain = params.get("domain");
     const since = params.get("since");
+    const before = params.get("before");
     const tags = params.get("tags")?.split(",") ?? [];
-    const lastRead = (entry: LibraryEntryDto) =>
-      entry.lastActivity === null ? 0 : Date.parse(entry.lastActivity.readAt);
     const matching = entries
       .filter(
         (entry) =>
@@ -133,6 +148,7 @@ export function fakeLibraryApi(
           searchKey(entry.canonicalName).includes(q) &&
           (domain === null || entry.sourceDomains.includes(domain)) &&
           (since === null || lastRead(entry) >= Date.parse(since)) &&
+          (before === null || quietSince(entry, before)) &&
           tags.every((tag) => entry.tags.includes(tag)),
       )
       .toSorted((a, b) => {
@@ -144,6 +160,9 @@ export function fakeLibraryApi(
             );
           case "chapters":
             return compare(b.readCount, a.readCount) || compare(a.id, b.id);
+          // The exact reverse of recent, tie-break included, as the API does.
+          case "oldest":
+            return compare(lastRead(a), lastRead(b)) || compare(b.id, a.id);
           default:
             return compare(lastRead(b), lastRead(a)) || compare(a.id, b.id);
         }

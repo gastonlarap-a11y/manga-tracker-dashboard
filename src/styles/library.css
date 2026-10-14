@@ -2,6 +2,9 @@
 
 .library {
   display: grid;
+  /* minmax(0, …), not the implicit auto: an auto track grows to its widest
+     content's minimum, and the toolbar's tabs would widen the page with it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(16px, 1.6vw, 24px);
 }
 
@@ -435,6 +438,16 @@
   font-size: 0.78rem;
 }
 
+/* Under "En lectura": how many went quiet, and the way to Seguimiento. In the
+   label's column, so the icon keeps spanning the number and the label. */
+.stat-link {
+  grid-column: 2;
+  margin-top: 4px;
+  color: var(--warm);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 /* ---- toolbar ---- */
 
 /* Floats above the grid as it scrolls: glass, as part of the navigation
@@ -444,6 +457,7 @@
   top: calc(var(--topbar-h) + 10px);
   z-index: 20;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   padding: 8px;
   border: 1px solid var(--glass-line);
@@ -618,12 +632,16 @@
   right: 8px;
 }
 
+.card-status.on_hold {
+  color: var(--on-cover-warm);
+}
+
 .card-status.completed {
-  color: oklch(0.86 0.15 155);
+  color: var(--on-cover-good);
 }
 
 .card-status.dropped {
-  color: oklch(0.82 0.13 20);
+  color: var(--on-cover-bad);
 }
 
 .card-play {

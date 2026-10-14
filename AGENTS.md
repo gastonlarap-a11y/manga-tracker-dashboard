@@ -10,19 +10,26 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
 - `src/api/` — backend contract: `types.ts` (hand-duplicated DTOs) + `client.ts`
   (`ApiResult<T>` fetch wrapper; relative paths, same-origin)
 - `src/state/atoms.ts` — Jotai: the grid's query (sort, status tab, search, site, period,
-  tags — **all applied by the server**), `atomWithRefresh` data atoms (the summary behind the
-  stats, counts and filter options; the continue-reading page; activity; duplicates; sync;
-  the extension's settings and what it knows),
+  tags — **all applied by the server**), the follow-up list's (tab, and `staleDaysAtom`, the
+  unread window — shared, so the count beside "En lectura" says the window the list does),
+  `atomWithRefresh` data atoms (the summary behind the
+  stats, counts, filter options and that count; the continue-reading page; activity;
+  duplicates; sync; the extension's settings and what it knows),
   `libraryRevisionAtom` and `refreshLibraryAtom`, the one action every mutation calls
-- `src/state/libraryPages.ts` — the grid's pages, in the store: a new query reads its first
-  page, a new revision re-reads every card already held, the newest request always wins
+- `src/state/libraryPages.ts` — `createPagedList(queryAtom)`, pages in the store: a new
+  query reads its first page, a new revision re-reads every card already held, the newest
+  request always wins — per list, so the grid and the follow-up list never discard each
+  other's answers. Two instances: the grid's and `followUpPages`
 - `src/App.tsx` — a **data router** (`createBrowserRouter`, `RouterProvider` from
   `react-router/dom`): `viewTransition` links and `<ScrollRestoration>` exist only there.
   The library is passed to `Layout`, which keeps it alive (see Rules); its route is empty
-- `src/views/` — one component per route (`/`, `/manga/:id`, `/duplicates`, `/extension`)
-  with colocated `*.test.tsx`, and their parts beside them: `views/library/` (the overview
-  bento — continue reading, activity, stats — the floating toolbar and the 2:3 cover grid),
-  `views/detail/` (the history grouped by day). `/extension` edits when the browser
+- `src/views/` — one component per route (`/`, `/manga/:id`, `/follow-up`, `/duplicates`,
+  `/extension`) with colocated `*.test.tsx`, and their parts beside them: `views/library/`
+  (the overview bento — continue reading, activity, stats — the floating toolbar and the 2:3
+  cover grid), `views/detail/` (the history grouped by day), `views/follow-up/` (the unread
+  windows). `/follow-up` (Seguimiento) lists the series in Leyendo not read for the window,
+  the most forgotten first (`sort=oldest&before=`), and the ones En pausa, the most recently
+  read first, each settled in one click. `/extension` edits when the browser
   extension counts a chapter as read ("lectura real", `PUT /api/extension-settings`), lists
   what it recognises without a calibration, and removes a calibration (`GET`/`DELETE
   /api/adapters` — a tombstone the sync carries, so it does not come back from another
@@ -44,7 +51,9 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
   tab becoming visible; owns `liveStatusAtom`), `ConnectionBadge` (shows the real
   stream state, no polling), `CoverImage` (cover with deterministic gradient
   fallback, and `AmbientCover`, the same cover blurred into a backdrop), `RenameForm`,
-  `Skeleton`, `EmbedChrome`, `coverTransition` (names the clicked cover for the morph)
+  `Skeleton`, `EmbedChrome`, `coverTransition` (names the clicked cover for the morph),
+  `statusNames` (every status's name, singular and plural, as one `Record<MangaStatus, …>`:
+  the next status is a type error there instead of a tab, a pill or a choice left out)
 - `src/styles/` — `tokens.css` (every colour, radius and duration, both themes) and one
   file per area; `main.tsx` imports them in order
 - `src/lib/` — pure utilities with colocated tests; `virtualRows.ts` is which rows of the
@@ -73,8 +82,10 @@ Sibling repos: `../manga-tracker-api` (its PLAN.md is the shared roadmap) and
 - Rename fixes only `canonicalName`. Merging two cards (`/api/duplicates/merge`) groups them
   without rewriting a single event — events stay append-only — and unmerge undoes it.
   Nothing merges automatically: a wrong merge is worse than a duplicate the user can join.
-- Reading status and tags are MANUAL (chapter pages cannot declare genres reliably);
-  deletes require explicit confirmation and are the only destructive action.
+- Reading status and tags are MANUAL (chapter pages cannot declare genres reliably): reading
+  a chapter of a series En pausa leaves it paused, which is why Seguimiento lists the paused
+  ones by their latest reading. Deletes require explicit confirmation and are the only
+  destructive action.
 - Tests: components that read async atoms suspend — always render through the async
   `renderWithProviders` and wrap suspense-triggering interactions in `actAsync`
   (React 19 requires awaited `act` for suspended trees). The hero and the recents repeat

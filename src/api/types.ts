@@ -2,7 +2,10 @@
 // src/lib/schemas.ts and src/modules/*/**.routes.ts are the source of truth).
 // Contract rule: any change there updates this file in the same commit.
 
-export type MangaStatus = "reading" | "completed" | "dropped";
+// on_hold: still followed, set aside for now (the author on hiatus, or waiting
+// for chapters to pile up). Manual like the rest: reading a chapter of a series
+// on hold leaves it on hold.
+export type MangaStatus = "reading" | "on_hold" | "completed" | "dropped";
 
 export interface MangaDto {
   id: string;
@@ -64,7 +67,9 @@ export interface LibraryPageDto {
   nextCursor: string | null;
 }
 
-export type LibrarySort = "recent" | "title" | "chapters";
+// oldest: least recently read first — the reverse of recent, never-read cards
+// first (`before` leaves them out).
+export type LibrarySort = "recent" | "oldest" | "title" | "chapters";
 
 export interface LibraryPageQuery {
   sort?: LibrarySort;
@@ -77,13 +82,18 @@ export interface LibraryPageQuery {
   domain?: string;
   // ISO instant: only cards read since then.
   since?: string;
+  // ISO instant: only cards read at least once, last before then.
+  before?: string;
   // A card must carry every one of them.
   tags?: string[];
 }
 
 // GET /api/library/summary: the totals and filter options, without the cards.
 export interface LibrarySummaryDto {
-  counts: { reading: number; completed: number; dropped: number; all: number };
+  counts: Record<MangaStatus, number> & { all: number };
+  // With ?staleBefore=: how many cards in reading were last read before then,
+  // counted with the filter of the follow-up list. Null when not asked.
+  stale: number | null;
   chapters: number;
   sites: number;
   activeThisWeek: number;

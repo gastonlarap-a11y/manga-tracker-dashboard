@@ -578,6 +578,22 @@ button.chip.selectable.active {
   color: var(--text-2);
 }
 
+/* Four statuses (five tabs, with Todos) are wider than a phone: the row
+   scrolls sideways inside itself instead of widening the page. Only there,
+   since overflow clips the edge of a focus ring; the desktop window never
+   gets this narrow. Its parent still has to let it shrink (minmax(0, …)). */
+@media (max-width: 560px) {
+  .segmented {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .segmented button {
+    flex: none;
+  }
+}
+
 /* ---- covers ---- */
 
 .cover {

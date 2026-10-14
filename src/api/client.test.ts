@@ -39,6 +39,7 @@ describe("getLibraryPage", () => {
       q: "  invocación ",
       domain: "olympusxyz.com",
       since: "2026-07-01T00:00:00.000Z",
+      before: "2026-09-01T00:00:00.000Z",
       tags: ["accion", "seinen"],
     });
 
@@ -52,6 +53,7 @@ describe("getLibraryPage", () => {
       q: "invocación",
       domain: "olympusxyz.com",
       since: "2026-07-01T00:00:00.000Z",
+      before: "2026-09-01T00:00:00.000Z",
       tags: "accion,seinen",
     });
   });
@@ -72,6 +74,18 @@ describe("getLibrarySummary", () => {
     await getLibrarySummary();
 
     expect(fetchMock).toHaveBeenCalledWith("/api/library/summary", undefined);
+  });
+
+  it("asks how many series went quiet since an instant", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ counts: {} }));
+
+    await getLibrarySummary({ staleBefore: "2026-07-15T00:00:00.000Z" });
+
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]), "http://x");
+    expect(url.pathname).toBe("/api/library/summary");
+    expect(url.searchParams.get("staleBefore")).toBe(
+      "2026-07-15T00:00:00.000Z",
+    );
   });
 });
 
