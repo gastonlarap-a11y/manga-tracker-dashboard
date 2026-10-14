@@ -89,6 +89,15 @@
   --heat-4: oklch(0.82 0.15 288);
 
   --ambient-opacity: 0.6;
+
+  /* Text on the dark glass over a cover (`.pill.on-cover`), which is the same
+     glass in both themes — so these are deliberately not redefined for light.
+     Measured on that glass: 6:1 or more over a mid-grey cover, falling to
+     2.8–3.8:1 over a white one (white text: 5.2:1). The status is also the
+     tab's and the detail page's, so the pill is never the only place it is. */
+  --on-cover-good: oklch(0.86 0.15 155);
+  --on-cover-bad: oklch(0.82 0.13 20);
+  --on-cover-warm: oklch(0.88 0.14 85);
 }
 
 @media (prefers-color-scheme: light) {

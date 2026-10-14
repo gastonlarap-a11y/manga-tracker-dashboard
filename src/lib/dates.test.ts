@@ -5,6 +5,7 @@ import {
   formatDate,
   formatTime,
   groupByDay,
+  instantDaysBefore,
   relativeDate,
 } from "./dates";
 
@@ -18,6 +19,7 @@ describe("relativeDate", () => {
     ["2026-07-13T12:00:00Z", "hace 3 días"],
     ["2026-06-29T12:00:00Z", "hace 2 semanas"],
     ["2026-04-16T12:00:00Z", "hace 3 meses"],
+    ["2024-07-01T12:00:00Z", "hace 2 años"],
   ])("formats %s as %s", (iso, expected) => {
     expect(relativeDate(iso, NOW)).toBe(expected);
   });
@@ -26,6 +28,15 @@ describe("relativeDate", () => {
 describe("formatDate", () => {
   it("produces an absolute date with the year", () => {
     expect(formatDate("2026-07-16T09:00:00Z")).toContain("2026");
+  });
+});
+
+describe("instantDaysBefore", () => {
+  it("is that many whole days before now, as an ISO instant", () => {
+    expect(instantDaysBefore(90, NOW.getTime())).toBe(
+      "2026-04-17T12:00:00.000Z",
+    );
+    expect(instantDaysBefore(0, NOW.getTime())).toBe(NOW.toISOString());
   });
 });
 

@@ -30,25 +30,20 @@ import type {
 import { AmbientCover, CoverImage } from "../components/CoverImage";
 import { RenameForm } from "../components/RenameForm";
 import { DetailSkeleton } from "../components/Skeleton";
+import { STATUS_NAMES, STATUSES } from "../components/statusNames";
 import { formatDate, relativeDate } from "../lib/dates";
 import {
   continueReadingAtom,
   refreshLibraryAtom,
   SEARCH_PAUSE_MS,
 } from "../state/atoms";
-import { libraryPagesAtom } from "../state/libraryPages";
+import { followUpPages, libraryPagesAtom } from "../state/libraryPages";
 import { ReadingHistory } from "./detail/ReadingHistory";
 
 type HistoryState =
   | { kind: "loading" }
   | { kind: "error"; error: string }
   | { kind: "loaded"; history: MangaHistoryDto };
-
-const STATUS_CHOICES: { value: MangaStatus; label: string }[] = [
-  { value: "reading", label: "Leyendo" },
-  { value: "completed", label: "Terminado" },
-  { value: "dropped", label: "Abandonado" },
-];
 
 const shortDate = new Intl.DateTimeFormat("es", {
   day: "numeric",
@@ -58,7 +53,7 @@ const shortDate = new Intl.DateTimeFormat("es", {
 
 // What the library already knows, without suspending: shown while the history
 // loads (see DetailSkeleton), never instead of it. Coming from a card, the
-// card is in the grid's pages or in the recents above it.
+// card is in the grid's pages, in the recents above it or in the follow-up list.
 const cachedRecentsAtom = unwrap(
   continueReadingAtom,
   (previous) => previous ?? null,
@@ -66,12 +61,14 @@ const cachedRecentsAtom = unwrap(
 
 function useKnownEntry(id: string | undefined): LibraryEntryDto | undefined {
   const pages = useAtomValue(libraryPagesAtom);
+  const followUp = useAtomValue(followUpPages.pagesAtom);
   const recents = useAtomValue(cachedRecentsAtom);
   if (id === undefined) {
     return undefined;
   }
   return (
     pages?.items.find((entry) => entry.id === id) ??
+    followUp?.items.find((entry) => entry.id === id) ??
     (recents?.ok
       ? recents.data.items.find((entry) => entry.id === id)
       : undefined)
@@ -517,16 +514,16 @@ function StatusPicker({
   return (
     <div className="status-picker">
       <div className="segmented">
-        {STATUS_CHOICES.map((choice) => (
+        {STATUSES.map((status) => (
           <button
-            key={choice.value}
+            key={status}
             type="button"
             disabled={saving}
-            aria-pressed={manga.status === choice.value}
-            className={manga.status === choice.value ? "active" : ""}
-            onClick={() => void setStatus(choice.value)}
+            aria-pressed={manga.status === status}
+            className={manga.status === status ? "active" : ""}
+            onClick={() => void setStatus(status)}
           >
-            {choice.label}
+            {STATUS_NAMES[status].one}
           </button>
         ))}
       </div>

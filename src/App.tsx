@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router/dom";
 import { Layout } from "./components/Layout";
 import { DuplicatesView } from "./views/DuplicatesView";
 import { ExtensionView } from "./views/ExtensionView";
+import { FollowUpView } from "./views/FollowUpView";
 import { LibraryView } from "./views/LibraryView";
 import { MangaDetailView } from "./views/MangaDetailView";
 
@@ -20,6 +21,8 @@ const router = createBrowserRouter([
       // another page is shown; the route only has to exist.
       { index: true, element: null },
       { path: "manga/:id", element: <MangaDetailView /> },
+      // Also in manga-tracker-api's SPA list (src/index.ts), or a 404 there.
+      { path: "follow-up", element: <FollowUpView /> },
       { path: "duplicates", element: <DuplicatesView /> },
       { path: "extension", element: <ExtensionView /> },
       {

@@ -170,6 +170,30 @@ describe("MangaDetailView", () => {
     expect(button.getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("puts a series on hold, among every status there is", async () => {
+    await renderDetail();
+    await screen.findByRole("heading", { name: "El Genio entrenador" });
+    const picker = screen
+      .getByRole("button", { name: "En pausa" })
+      .closest(".segmented");
+    expect(
+      [...(picker?.querySelectorAll("button") ?? [])].map(
+        (choice) => choice.textContent,
+      ),
+    ).toEqual(["Leyendo", "En pausa", "Terminado", "Abandonado"]);
+
+    await actAsync(() => {
+      fireEvent.click(screen.getByRole("button", { name: "En pausa" }));
+    });
+
+    expect(lastPutBody).toEqual({ status: "on_hold" });
+    expect(
+      screen
+        .getByRole("button", { name: "En pausa" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
   it("adds and removes tags through the editor", async () => {
     await renderDetail();
     await screen.findByRole("heading", { name: "El Genio entrenador" });

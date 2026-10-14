@@ -3,10 +3,11 @@ import { unwrap } from "jotai/utils";
 import { BookOpen, Play, SearchX } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { Link } from "react-router";
-import type { LibraryEntryDto, MangaStatus } from "../../api/types";
+import type { LibraryEntryDto } from "../../api/types";
 import { CoverImage } from "../../components/CoverImage";
 import { markCoverForTransition } from "../../components/coverTransition";
 import { GridSkeleton } from "../../components/Skeleton";
+import { STATUS_NAMES } from "../../components/statusNames";
 import { relativeDate } from "../../lib/dates";
 import { type RowWindow, visibleRows } from "../../lib/virtualRows";
 import {
@@ -24,12 +25,6 @@ import {
 // Without suspending: an empty grid only needs it to tell "nothing read yet"
 // from "nothing matches", and the bento above suspends on it already.
 const summaryAtom = unwrap(librarySummaryAtom, (previous) => previous ?? null);
-
-const STATUS_LABELS: Record<MangaStatus, string> = {
-  reading: "Leyendo",
-  completed: "Terminado",
-  dropped: "Abandonado",
-};
 
 /** Rows kept in the page beyond each edge of the window. */
 const OVERSCAN_ROWS = 3;
@@ -275,7 +270,7 @@ function MangaCard({
         )}
         {showStatus && entry.status !== "reading" && (
           <span className={`pill on-cover card-status ${entry.status}`}>
-            {STATUS_LABELS[entry.status]}
+            {STATUS_NAMES[entry.status].one}
           </span>
         )}
         {entry.lastSourceUrl && (

@@ -1,0 +1,109 @@
+/* Seguimiento: the series gone quiet and the ones on hold, a row each, with
+   what to do about them right there. Solid tiles — content, not navigation. */
+
+.follow-up {
+  display: grid;
+  gap: 16px;
+}
+
+.follow-up .page-head {
+  margin-bottom: 8px;
+}
+
+.follow-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.follow-controls .segmented {
+  margin: 0;
+}
+
+.follow-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.follow-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+/* Narrow: the actions go under the title instead of squeezing it. */
+@media (max-width: 760px) {
+  .follow-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .follow-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+.follow-cover {
+  display: block;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.follow-cover .cover-fallback {
+  font-size: 1.1rem;
+}
+
+.follow-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.follow-name {
+  color: var(--text);
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.follow-name:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.follow-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.follow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.follow-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.follow-skeleton .skeleton-block {
+  min-height: 220px;
+}
